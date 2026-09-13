@@ -329,12 +329,14 @@ func getMCPTools() []map[string]any {
 					"errors":           map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					"warnings":         map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					"gate_findings":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Diagnostics from governance/code_refs gates."},
-					"broken_links": map[string]any{"type": "array", "items": map[string]any{"type": "object",
+					"broken_links": map[string]any{"type": "array", "items": map[string]any{
+						"type": "object",
 						"properties": map[string]any{
 							"source_concept": map[string]any{"type": "string"},
 							"target_href":    map[string]any{"type": "string"},
 							"reason":         map[string]any{"type": "string"},
-						}}, "description": "Graph integrity findings."},
+						},
+					}, "description": "Graph integrity findings."},
 					"orphans":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					"stale_count":   map[string]any{"type": "integer"},
 					"is_conformant": map[string]any{"type": "boolean"},
