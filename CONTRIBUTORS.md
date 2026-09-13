@@ -13,6 +13,7 @@ Thank you to everyone who has contributed to **OKF Agent Memory**! Every contrib
 * **[@sknr](https://github.com/sknr)** — Project Creator & Core Maintainer
 * **Denis Samatov ([@denis-samatov](https://github.com/denis-samatov))** — CLI argument handling, Windows link resolution, and actor family expansions (#14, #15, #16, #17)
 * **Wu Shuwen ([@dajiaohuang](https://github.com/dajiaohuang))** — GitFlow integration branch setup and issue-first development policy (#19)
+* **[@yakimoto](https://github.com/yakimoto)** — MCP tool outputSchema specifications and test coverage (#20, #22)
 
 ---
 
