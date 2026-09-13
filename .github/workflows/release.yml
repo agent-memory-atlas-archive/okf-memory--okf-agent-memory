@@ -18,6 +18,9 @@ jobs:
   release:
     name: Build & Publish Release
     runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      WEBSITE_UPDATE_TOKEN: ${{ secrets.WEBSITE_UPDATE_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -180,10 +183,12 @@ jobs:
           body_path: ${{ steps.release_notes.outputs.BODY_PATH }}
 
       - name: Auto-update Homebrew Tap
-        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
-        env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        if: env.HOMEBREW_TAP_TOKEN != ''
         run: |
+          if [ -z "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "HOMEBREW_TAP_TOKEN is not set, skipping Homebrew tap update."
+            exit 0
+          fi
           echo "Updating okf-memory/homebrew-tap with new Formula..."
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -201,10 +206,12 @@ jobs:
           fi
 
       - name: Auto-update Documentation Website
-        if: ${{ secrets.WEBSITE_UPDATE_TOKEN != '' }}
-        env:
-          WEBSITE_UPDATE_TOKEN: ${{ secrets.WEBSITE_UPDATE_TOKEN }}
+        if: env.WEBSITE_UPDATE_TOKEN != ''
         run: |
+          if [ -z "${WEBSITE_UPDATE_TOKEN:-}" ]; then
+            echo "WEBSITE_UPDATE_TOKEN is not set, skipping website update."
+            exit 0
+          fi
           echo "Updating okf-memory/okf-memory.github.io documentation and install links..."
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
