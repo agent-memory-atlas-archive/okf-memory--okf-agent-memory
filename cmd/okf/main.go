@@ -68,6 +68,8 @@ func main() {
 		cmdBootstrap(args)
 	case "mcp":
 		cmdMCP(args)
+	case "hub":
+		cmdHub(args)
 	case "version", "--version", "-v":
 		fmt.Printf("okf version %s (OKF v0.2 specification)\n", Version)
 	case "help", "--help", "-h":
@@ -95,6 +97,7 @@ Commands:
   init [path]            Initialize a new OKF v0.2 bundle (index.md, log.md)
   bootstrap [target-dir] Scaffold complete memory stack (skill, AGENTS.md, knowledge, Makefile)
   mcp [bundle]           Run as a Model Context Protocol (MCP) server over stdio
+  hub <subcommand>       Zero-knowledge sync and vault management (push, pull, sync, serve)
   version                Print version information
   help                   Show this help message
 
