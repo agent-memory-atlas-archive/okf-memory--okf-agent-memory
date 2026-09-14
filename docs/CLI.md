@@ -228,3 +228,51 @@ okf mcp [bundle-path]
 | `okf_update` | `id`, `title`, `description`, `body` | Update existing concept and record in log.md. |
 | `okf_relate` | `source_id`, `target_id`, `description` | Link two concepts together. |
 | `okf_validate` | `strict` (bool), `drift` (bool) | Verify bundle conformance. |
+
+---
+
+### 10. `hub`
+
+Manages zero-knowledge end-to-end encrypted synchronization with the OKF Memory Hub and runs the embedded CAS server for self-hosting.
+
+```bash
+okf hub <subcommand> [arguments] [flags]
+```
+
+#### Subcommands
+
+##### A. `init-vault`
+Initializes a new zero-knowledge vault, derives a 128-bit Secret Key, writes `.okf-vault.json`, and prints the Emergency Kit.
+
+```bash
+okf hub init-vault [bundle-path]
+```
+
+##### B. `push`
+Detects local bundle changes via `plaintext_hash`, encrypts modified files into binary AES-256-GCM envelopes, deduplicates against remote CAS (`/blobs/check-missing`), uploads missing blobs, and advances the remote vault head.
+
+```bash
+okf hub push [bundle-path] [--hub <url>] [--password <pass>] [--secret-key <key>] [--message <msg>]
+```
+
+##### C. `pull`
+Fetches the latest remote commit and tree manifest, downloads new ciphertext blobs from CAS, decrypts them locally into RAM, and updates files on disk.
+
+```bash
+okf hub pull [bundle-path] [--hub <url>] [--password <pass>] [--secret-key <key>]
+```
+
+##### D. `sync`
+Performs a full two-way synchronization cycle (Pull + Push). If an HTTP 409 conflict occurs (concurrent updates), the 3-way reconcile engine automatically fast-forwards disjoint changes or preserves conflicting files locally as `<file>.conflict-local.md` without data loss.
+
+```bash
+okf hub sync [bundle-path] [--hub <url>] [--password <pass>] [--secret-key <key>] [--message <msg>]
+```
+
+##### E. `serve`
+Runs the embedded blind CAS and atomic head pointer server locally on the specified port.
+
+```bash
+okf hub serve [--port 8080] [--storage <dir>]
+```
+

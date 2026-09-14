@@ -1,3 +1,7 @@
+## 2026-09-14
+* **Update**: Linked `architecture/zero-knowledge-vault-sync.md` to `architecture/layers.md` (Zero-knowledge sync extends the tooling and storage layers with client-side cryptography.).
+* **Creation**: Documented concept `architecture/zero-knowledge-vault-sync.md` (Zero-Knowledge Vault Cryptography and Blind Sync Architecture).
+
 ## 2026-09-12
 * **Release**: Published version v0.2.0 — Epistemic Governance & Code-to-Knowledge Binding Release.
 * **Infrastructure**: Automated GitHub Actions release pipeline to ingest release notes from `docs/releases/${VERSION}.md` with fail-fast CI gate.
