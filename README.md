@@ -5,7 +5,7 @@
 [![Specification](https://img.shields.io/badge/Specification-OKF_v0.2-blue.svg)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
 [![Tooling](https://img.shields.io/badge/Tooling-Go_1.26_%7C_Zero_Deps-00ADD8.svg)](pkg/okf)
 [![CI](https://github.com/okf-memory/okf-agent-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/okf-memory/okf-agent-memory/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/okf-memory/okf-agent-memory)](https://goreportcard.com/report/github.com/okf-memory/okf-agent-memory)
+[![Trendshift](https://img.shields.io/badge/Trendshift-%232_Go_Trending-ff5722.svg)](https://trendshift.io/repositories/215663)
 [![Protocol](https://img.shields.io/badge/MCP-Ready-purple.svg)](cmd/okf)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa.svg)](https://github.com/sponsors/sknr)
