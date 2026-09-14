@@ -87,7 +87,7 @@ func (c *Client) GetHead(ctx context.Context, vaultID string) (*HeadResponse, er
 	if err != nil {
 		return nil, fmt.Errorf("sync: GetHead request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, ErrUnauthorized
@@ -131,7 +131,7 @@ func (c *Client) Commit(ctx context.Context, vaultID, newCommitHash string, expe
 	if err != nil {
 		return nil, fmt.Errorf("sync: Commit request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusConflict {
 		var conflict HeadConflictError
@@ -181,7 +181,7 @@ func (c *Client) CheckMissingBlobs(ctx context.Context, vaultID string, hashes [
 	if err != nil {
 		return nil, fmt.Errorf("sync: CheckMissing request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, ErrUnauthorized
@@ -213,7 +213,7 @@ func (c *Client) PutBlob(ctx context.Context, vaultID, hash string, data []byte)
 	if err != nil {
 		return fmt.Errorf("sync: PutBlob request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		return ErrUnauthorized
@@ -237,7 +237,7 @@ func (c *Client) GetBlob(ctx context.Context, vaultID, hash string) ([]byte, err
 	if err != nil {
 		return nil, fmt.Errorf("sync: GetBlob request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrBlobNotFound

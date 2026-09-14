@@ -67,7 +67,7 @@ func runHubInitVault(w io.Writer, dir string) error {
 		return fmt.Errorf("failed to save %s: %w", configFileName, err)
 	}
 
-	fmt.Fprintf(w, `
+	_, _ = fmt.Fprintf(w, `
 ================================================================================
                        OKF MEMORY HUB — EMERGENCY KIT
 ================================================================================
@@ -105,7 +105,7 @@ func executeHubPush(w io.Writer, dir string, client *sync.Client, vaultID, passw
 		return fmt.Errorf("push failed: %w", err)
 	}
 
-	fmt.Fprintf(w, "Push completed: commit %s (uploaded %d, unchanged %d)\n", res.CommitHash, res.UploadedBlobs, res.UnchangedBlobs)
+	_, _ = fmt.Fprintf(w, "Push completed: commit %s (uploaded %d, unchanged %d)\n", res.CommitHash, res.UploadedBlobs, res.UnchangedBlobs)
 	return nil
 }
 
@@ -121,7 +121,7 @@ func executeHubPull(w io.Writer, dir string, client *sync.Client, vaultID, passw
 		return fmt.Errorf("pull failed: %w", err)
 	}
 
-	fmt.Fprintf(w, "Pull completed: commit %s (updated %d, deleted %d)\n", res.CommitHash, len(res.UpdatedFiles), len(res.DeletedFiles))
+	_, _ = fmt.Fprintf(w, "Pull completed: commit %s (updated %d, deleted %d)\n", res.CommitHash, len(res.UpdatedFiles), len(res.DeletedFiles))
 	return nil
 }
 
@@ -149,11 +149,11 @@ func executeHubSync(w io.Writer, dir string, client *sync.Client, vaultID, passw
 	if len(res.Conflicts) > 0 {
 		for _, c := range res.Conflicts {
 			forked := sync.ConflictLocalPath(c.Path)
-			fmt.Fprintf(w, "⚠️  Collision detected at %s. Local version saved as %s.\n", c.Path, forked)
+			_, _ = fmt.Fprintf(w, "⚠️  Collision detected at %s. Local version saved as %s.\n", c.Path, forked)
 		}
 	}
 
-	fmt.Fprintf(w, "Sync completed: commit %s\n", res.CommitHash)
+	_, _ = fmt.Fprintf(w, "Sync completed: commit %s\n", res.CommitHash)
 	return nil
 }
 

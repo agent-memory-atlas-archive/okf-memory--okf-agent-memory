@@ -38,9 +38,13 @@ fmt:
 vet:
 	@go vet ./...
 
-## lint: Run golangci-lint static analysis (falls back to go vet)
+## lint: Run golangci-lint static analysis (falls back to go vet if not installed)
 lint:
-	@which golangci-lint > /dev/null && golangci-lint run ./... || go vet ./...
+	@if command -v golangci-lint > /dev/null 2>&1; then \
+		golangci-lint run ./...; \
+	else \
+		go vet ./...; \
+	fi
 
 ## audit-security: Run automated security analysis (gosec and govulncheck)
 audit-security:
