@@ -120,6 +120,16 @@ func LoadBundle(root string) (*Bundle, error) {
 		return nil, fmt.Errorf("path is not a directory: %s", root)
 	}
 
+	// If root itself does not contain index.md, but contains a knowledge/ subdirectory,
+	// resolve to the nested knowledge/ bundle directory (e.g. project root with DMAA layout).
+	rootIndex := filepath.Join(realRoot, "index.md")
+	if _, err := os.Stat(rootIndex); os.IsNotExist(err) {
+		kDir := filepath.Join(realRoot, "knowledge")
+		if kInfo, kErr := os.Stat(kDir); kErr == nil && kInfo.IsDir() {
+			root = filepath.Join(root, "knowledge")
+		}
+	}
+
 	b := &Bundle{
 		RootPath:     root,
 		Concepts:     make(map[string]*Concept),
@@ -158,6 +168,11 @@ func LoadBundle(root string) (*Bundle, error) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
+
+		// Root AGENTS.md is the agent governance layer (DMAA L1), not an OKF concept
+		if strings.EqualFold(rel, "AGENTS.md") {
+			return nil
+		}
 
 		// Security: prevent symlink following outside bundle directory
 		if d.Type()&fs.ModeSymlink != 0 {
