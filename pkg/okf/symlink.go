@@ -37,8 +37,8 @@ func GetDefaultSymlinkDefs() []SymlinkDefinition {
 		},
 		{
 			ToolName:    "GitHub Copilot",
-			RelPath:     filepath.Join(".github", "copilot-instructions.md"),
-			RelTarget:   filepath.Join("..", "AGENTS.md"),
+			RelPath:     filepath.ToSlash(filepath.Join(".github", "copilot-instructions.md")),
+			RelTarget:   "../AGENTS.md",
 			Description: "GitHub Copilot custom instructions",
 		},
 	}
@@ -192,7 +192,7 @@ func CheckToolSymlinks(root string) ([]SymlinkStatus, error) {
 		}
 
 		st.ActualTarget = target
-		if target == def.RelTarget {
+		if filepath.ToSlash(target) == filepath.ToSlash(def.RelTarget) {
 			st.IsValid = true
 		} else {
 			st.ErrorMessage = fmt.Sprintf("points to %q, expected %q", target, def.RelTarget)
