@@ -11,7 +11,7 @@ func TestCreateAndCheckToolSymlinks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Create canonical AGENTS.md
 	agentsPath := filepath.Join(tempDir, "AGENTS.md")

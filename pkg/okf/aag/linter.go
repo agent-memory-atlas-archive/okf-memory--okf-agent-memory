@@ -5,20 +5,14 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"unicode"
 )
 
-var (
-	// RFC 2119 valid prefix keywords for invariants
-	validModalPrefixes = []string{
-		"MUST", "MUST NOT", "NEVER", "PREFER", "ALWAYS", "SHOULD", "MAY", "!",
-	}
-
-	// Tool call pattern: tool_name(param=val, ...)
-	toolCallRegex = regexp.MustCompile(`([a-zA-Z0-9_]+)\(([^)]*)\)?`)
-)
+// RFC 2119 valid prefix keywords for invariants
+var validModalPrefixes = []string{
+	"MUST", "MUST NOT", "NEVER", "PREFER", "ALWAYS", "SHOULD", "MAY", "!",
+}
 
 // LintFile reads a file and lints it according to AAG rules.
 func LintFile(path string, opts LinterOptions) (*LintResult, error) {

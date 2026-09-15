@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -11,7 +12,7 @@ func TestCLIAgentsLint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	validContent := `# AGENTS.md - DMAA Protocol v0.1 - Instructions for AI Agents in Test
 
@@ -68,7 +69,7 @@ func TestCLIAgentsInitDomain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Test init with domain=legal
 	err = runAgentsInit([]string{"--domain", "legal", "--root", tempDir})
@@ -83,20 +84,7 @@ func TestCLIAgentsInitDomain(t *testing.T) {
 	}
 
 	content := string(data)
-	if !containsStr(content, "Legal & Compliance") && !containsStr(content, "Regulatory Governance") {
+	if !strings.Contains(content, "Legal & Compliance") && !strings.Contains(content, "Regulatory Governance") {
 		t.Errorf("expected legal domain codex content in AGENTS.md, got:\n%s", content)
 	}
-}
-
-func containsStr(s, sub string) bool {
-	return filepath.HasPrefix(s, sub) || (len(s) >= len(sub) && (s == sub || stringContains(s, sub)))
-}
-
-func stringContains(s, sub string) bool {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
 }
