@@ -2,6 +2,12 @@
 
 > Powered by [OKF Agent Memory](https://github.com/okf-memory/okf-agent-memory) — Open Knowledge Format (OKF) v0.2 persistent project memory for AI agents.
 
+## 0. Project & Domain Codex
+- TONE: style == direct_concise, zero_pleasantries
+- FORMAT: diagrams => ASSERT(syntax == mermaid, ELSE=STOP("All diagrams MUST use Mermaid syntax; ASCII/text art prohibited."))
+- GOAL: maintain(high_factual_integrity, domain_neutrality, strict_determinism)
+
+<!-- BEGIN OKF AGENT MEMORY -->
 ## 1. Behavioral Invariants & Constraints (RFC 2119)
 - MUST execute `okf_search(query=keywords, limit=3)` before proposing architecture, new dependencies, or substantial code changes.
 - NEVER scan `knowledge/` via `list_dir`, `grep_search`, `find`, or raw file readers.
@@ -25,3 +31,4 @@
 3. IF concepts_mutated => MUST sync(knowledge/log.md, knowledge/index.md)
 4. IF skills_or_conventions_mutated => MUST run(`make sync-assets`)
 5. ASSERT(okf_validate(strict=true, drift=true) == {errors: 0, warnings: 0}, ELSE=fix_before_exit)
+<!-- END OKF AGENT MEMORY -->

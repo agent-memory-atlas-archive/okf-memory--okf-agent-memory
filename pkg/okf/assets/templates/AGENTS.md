@@ -6,7 +6,7 @@ Welcome to the **{{PROJECT_NAME}}** repository. Define domain-specific behaviora
 
 ## 0. Project & Domain Codex (Customize for your domain: Research, Enterprise, Engineering, Creative)
 - TONE: style == direct_concise, zero_pleasantries
-- FORMAT: diagrams => ASSERT(syntax == mermaid)
+- FORMAT: diagrams => ASSERT(syntax == mermaid, ELSE=STOP("All diagrams MUST use Mermaid syntax; ASCII/text art prohibited."))
 - GOAL: maintain(high_factual_integrity, domain_conventions)
 
 <!-- BEGIN OKF AGENT MEMORY -->

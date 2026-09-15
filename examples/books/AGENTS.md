@@ -4,6 +4,7 @@
 
 ## 0. Project & Domain Codex (Literature & Editorial Analysis)
 - TONE: style == literary_analytical, objective_scholarly, nuanced
+- FORMAT: diagrams => ASSERT(syntax == mermaid, ELSE=STOP("All diagrams MUST use Mermaid syntax; ASCII/text art prohibited."))
 - INTEGRITY: maintain(character_consistency, canon_fidelity, timeline_accuracy)
 - SPOILERS: explicit_warning => MUST flag(major_plot_twists, ending_revelations)
 - CITATIONS: quotes => ASSERT(attribute_to_author, specify_edition_or_chapter)

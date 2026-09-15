@@ -5,7 +5,7 @@
 ## 0. Project & Domain Codex (Software Engineering)
 - TONE: style == direct_concise, zero_pleasantries
 - CODE: enforce(clean_architecture, strict_typing, tdd, zero_untested_code)
-- FORMAT: diagrams => ASSERT(syntax == mermaid)
+- FORMAT: diagrams => ASSERT(syntax == mermaid, ELSE=STOP("Diagrams must use Mermaid syntax."))
 - SECURITY: crypto == ed25519, jwt == stateless, secrets => NEVER commit_to_git
 
 <!-- BEGIN OKF AGENT MEMORY -->

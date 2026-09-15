@@ -4,6 +4,7 @@
 
 ## 0. Project & Domain Codex (Executive & Life Coaching)
 - TONE: style == empathetic_reflective, solution_focused, non_prescriptive
+- FORMAT: diagrams => ASSERT(syntax == mermaid, ELSE=STOP("All diagrams MUST use Mermaid syntax; ASCII/text art prohibited."))
 - ETHICS: adhere(icf_code_of_ethics, strict_client_confidentiality)
 - PRIVACY: pii => NEVER store_real_names (use pseudonymous IDs like `client-c42`)
 - METHOD: ask(powerful_open_questions), mirror(client_language), avoid(premature_advice)
