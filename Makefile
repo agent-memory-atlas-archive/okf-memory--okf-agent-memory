@@ -88,9 +88,9 @@ validate: build
 
 ## validate-examples: Validate all bundled example corpora
 validate-examples: build
-	@$(BIN) validate examples/software --strict
-	@$(BIN) validate examples/coaching --strict
-	@$(BIN) validate examples/books --strict
+	@$(BIN) validate examples/software/knowledge --strict
+	@$(BIN) validate examples/coaching/knowledge --strict
+	@$(BIN) validate examples/books/knowledge --strict
 
 ## validate-all: Validate project knowledge and all examples
 validate-all: validate validate-examples

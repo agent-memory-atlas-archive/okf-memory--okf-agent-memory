@@ -164,10 +164,10 @@ okf-agent-memory/
 │   ├── security/           # Data governance, secret prevention & adversarial security audits
 │   ├── project/            # Project roadmap, release playbook & multi-agent testing
 │   └── releases/           # Versioned release notes & changelog archive (v0.1.0 – v0.2.0)
-├── examples/               # Domain-neutral reference OKF v0.2 bundles
-│   ├── books/              # Literature & cognitive science knowledge bundle
-│   ├── coaching/           # Executive coaching & client session bundle
-│   └── software/           # Microservices architecture & ADR bundle
+├── examples/               # Domain-neutral reference DMAA projects (AGENTS.md + OKF v0.2 knowledge/)
+│   ├── books/              # Literature & editorial analysis repository
+│   ├── coaching/           # Executive coaching & client session repository
+│   └── software/           # Microservices architecture & ADR engineering repository
 ├── knowledge/              # Project's own OKF v0.2 persistent memory bundle
 │   ├── index.md            # Root progressive disclosure index (okf_version: "0.2")
 │   ├── log.md              # Dated change log (ISO 8601 YYYY-MM-DD)
