@@ -471,7 +471,6 @@ func (s *mcpServer) resolveBundleDir(callParams mcpToolCallParams) (string, erro
 			absRoot, _ = filepath.Abs(absRoot)
 		}
 
-		normTarget := strings.ReplaceAll(target, "\\", "/")
 		var absTarget string
 		if filepath.IsAbs(normTarget) {
 			absTarget = normTarget
