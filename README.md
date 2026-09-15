@@ -165,21 +165,16 @@ okf-agent-memory/
 │   ├── okf/                # Standalone CLI and embedded MCP server (`stdio`)
 │   └── okf-benchmark/      # Automated benchmark runner for LLM TTFT & token measurements
 ├── docs/                   # Guides, specifications, architecture & release playbook
-│   ├── releases/           # Versioned release notes & changelog archive (v0.1.0 – v0.2.0)
-│   ├── AGENT_TESTING.md    # Multi-agent testing, prompt scenarios & compatibility matrix
-│   ├── ALTERNATIVES.md     # Comparison against Mem0, Letta, and ad-hoc markdown
-│   ├── CLI.md              # Complete command-line & MCP tool reference
-│   ├── CONVENTION.md       # OKF Agent Memory Convention v0.1
-│   ├── GETTING_STARTED.md  # Comprehensive onboarding guide
-│   ├── OKF-COMPATIBILITY.md# OKF v0.2 spec compatibility analysis
-│   ├── RELEASE_PLAYBOOK.md # Automated release process & version tagging
-│   ├── ROADMAP.md          # Project roadmap & milestones
-│   ├── SECURITY.md         # Data governance, secret prevention & PII rules
-│   └── SECURITY_AUDIT.md   # Adversarial security audit protocol & Jules reviewer instructions
-├── examples/               # Domain-neutral reference OKF v0.2 bundles
-│   ├── books/              # Literature & cognitive science knowledge bundle
-│   ├── coaching/           # Executive coaching & client session bundle
-│   └── software/           # Microservices architecture & ADR bundle
+│   ├── README.md           # Central documentation index & navigation
+│   ├── guides/             # User guides, CLI/MCP reference & AI instruction best practices
+│   ├── spec/               # OKF convention v0.1, compatibility analysis & architecture RFCs
+│   ├── security/           # Data governance, secret prevention & adversarial security audits
+│   ├── project/            # Project roadmap, release playbook & multi-agent testing
+│   └── releases/           # Versioned release notes & changelog archive (v0.1.0 – v0.2.0)
+├── examples/               # Domain-neutral reference DMAA projects (AGENTS.md + OKF v0.2 knowledge/)
+│   ├── books/              # Literature & editorial analysis repository
+│   ├── coaching/           # Executive coaching & client session repository
+│   └── software/           # Microservices architecture & ADR engineering repository
 ├── knowledge/              # Project's own OKF v0.2 persistent memory bundle
 │   ├── index.md            # Root progressive disclosure index (okf_version: "0.2")
 │   ├── log.md              # Dated change log (ISO 8601 YYYY-MM-DD)
@@ -216,18 +211,21 @@ make check
 
 ## 📖 Further Documentation
 
-* [Getting Started Guide](docs/GETTING_STARTED.md) — Comprehensive onboarding guide for agents and humans.
-* [CLI & MCP Reference](docs/CLI.md) — Complete command-line and protocol tools reference.
+* [Documentation Index](docs/README.md) — Central directory of all project documentation.
+* [Getting Started Guide](docs/guides/GETTING_STARTED.md) — Comprehensive onboarding guide for agents and humans.
+* [CLI & MCP Reference](docs/guides/CLI.md) — Complete command-line and protocol tools reference.
+* [Agent Instruction Best Practices](docs/guides/AGENT_INSTRUCTION_BEST_PRACTICES.md) — Guide to deterministic, token-efficient instruction design and Agent Action Grammar (AAG).
 * [Contributing Guide](CONTRIBUTING.md) — Development setup, quality gates, and pull request standards.
-* [Security & Privacy Guidelines](docs/SECURITY.md) — Data governance, secret prevention, and PII protection rules.
-* [Multi-Agent Testing & Evaluation](docs/AGENT_TESTING.md) — Test scenarios, compatibility matrix, and benchmarks.
-* [OKF Agent Memory Convention v0.1](docs/CONVENTION.md) — Behavioral rules and lifecycle specification.
-* [Project Roadmap & Milestones](docs/ROADMAP.md) — Phased development plan.
-* [Release Playbook](docs/RELEASE_PLAYBOOK.md) — Versioning, CI/CD pipeline, and distribution procedures.
+* [Security & Privacy Guidelines](docs/security/SECURITY.md) — Data governance, secret prevention, and PII protection rules.
+* [Multi-Agent Testing & Evaluation](docs/project/AGENT_TESTING.md) — Test scenarios, compatibility matrix, and benchmarks.
+* [OKF Agent Memory Convention v0.1](docs/spec/CONVENTION.md) — Behavioral rules and lifecycle specification.
+* [Dual-Memory Agent Architecture RFC](docs/spec/DUAL_MEMORY_AGENT_ARCHITECTURE_RFC.md) — Proposal for 2-layer agent memory (Push codex + Pull knowledge).
+* [Project Roadmap & Milestones](docs/project/ROADMAP.md) — Phased development plan.
+* [Release Playbook](docs/project/RELEASE_PLAYBOOK.md) — Versioning, CI/CD pipeline, and distribution procedures.
 * [Release Notes & History](docs/releases/README.md) — Versioned changelogs and historical release notes archive.
-* [OKF v0.2 Compatibility Matrix](docs/OKF-COMPATIBILITY.md) — Specification validation analysis.
+* [OKF v0.2 Compatibility Matrix](docs/spec/OKF-COMPATIBILITY.md) — Specification validation analysis.
 * [Why OKF Agent Memory?](knowledge/project/value-proposition.md) — Detailed value proposition & differentiators.
-* [Alternatives & Ecosystem Comparison](docs/ALTERNATIVES.md) — Comparison with Mem0, Letta, and ad-hoc markdown files.
+* [Alternatives & Ecosystem Comparison](docs/project/ALTERNATIVES.md) — Comparison with Mem0, Letta, and ad-hoc markdown files.
 
 ---
 

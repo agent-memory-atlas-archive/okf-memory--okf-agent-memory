@@ -8,23 +8,11 @@ This document establishes the normative security, privacy, and data governance p
 
 AI agents operating in software repositories, customer coaching platforms, or private workspaces interact with sensitive data. Persistent memory creates a durable record; therefore, strict boundaries must prevent data leaks, credential persistence, and prompt injection attacks.
 
-```
-┌────────────────────────────────────────────────────────┐
-│                   Untrusted Input                      │
-│      (Chat Prompts, Web Scrapes, Raw Stack Traces)     │
-└───────────────────────────┬────────────────────────────┘
-                            │ Filter & Sanitize
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│                   Agent Reasoning                      │
-│           (Transient Context / Scratchpads)            │
-└───────────────────────────┬────────────────────────────┘
-                            │ Explicit Persistence Gate
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│               Persistent Memory (OKF)                  │
-│       (Plaintext Markdown / Git-Audited Corpus)        │
-└────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    U["Untrusted Input (Chat Prompts, Web Scrapes, Stack Traces)"]
+    U -->|"Filter & Sanitize"| R["Agent Reasoning (Transient Context / Scratchpads)"]
+    R -->|"Explicit Persistence Gate"| P["Persistent Memory (OKF Plaintext Markdown / Git Corpus)"]
 ```
 
 ---

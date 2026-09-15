@@ -51,7 +51,7 @@ make audit-security
 - **Conduct Security Specialist Agent Review**:
   - Extract the diff for the upcoming release against the previous tag:
     `git diff <previous-tag>..HEAD` (e.g. `git diff v0.1.2..HEAD`)
-  - Instruct a Security Specialist Agent using [`docs/SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) to audit the diff against all 4 audit areas.
+  - Instruct a Security Specialist Agent using [`docs/security/SECURITY_AUDIT.md`](../security/SECURITY_AUDIT.md) to audit the diff against all 4 audit areas.
   - Require a report status of **"Passed (0 High/Critical)"** before proceeding to Step 3.
 
 ### Step 3: Ensure Working Directory is Clean

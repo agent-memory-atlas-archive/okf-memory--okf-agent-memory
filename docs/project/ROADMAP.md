@@ -55,7 +55,7 @@ handle format correctness.
       specification and reference implementation (`OKF-COMPATIBILITY.md`).
 - [x] Bootstrapped the project's own persistent knowledge base (`knowledge/`
       OKF v0.2 bundle).
-- [x] Finalized the Convention v0.1 (`docs/CONVENTION.md`).
+- [x] Finalized the Convention v0.1 (`docs/spec/CONVENTION.md`).
 - [x] Designed and implemented the standardized agent skill (`.agents/skills/okf-memory/`).
 - [x] Designed and implemented the Go OKF core library (`pkg/okf/`).
 - [x] Implemented deterministic OKF v0.2 validation engine with strict & drift modes.
@@ -65,7 +65,7 @@ handle format correctness.
 - [x] Built the standalone CLI tool (`cmd/okf/`) with JSON mode for agents.
 - [x] Implemented embedded Model Context Protocol (MCP) server (`okf mcp`).
 - [x] Created cross-domain example corpora (`examples/software`, `examples/coaching`, `examples/books`).
-- [x] Tested multi-agent integration & scenario benchmarks (TC-01 through TC-07, `docs/AGENT_TESTING.md`).
+- [x] Tested multi-agent integration & scenario benchmarks (TC-01 through TC-07, `docs/project/AGENT_TESTING.md`).
 - [x] Documented installation, CLI reference, security policies, and release playbook (`docs/`).
 
 - [x] **Governance vs. Execution Context (P0 / Architecture RFC)**:

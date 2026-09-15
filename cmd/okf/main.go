@@ -66,6 +66,8 @@ func main() {
 		cmdInit(args)
 	case "bootstrap":
 		cmdBootstrap(args)
+	case "agents":
+		cmdAgents(args)
 	case "mcp":
 		cmdMCP(args)
 	case "hub":
@@ -96,6 +98,7 @@ Commands:
   relate <src> <tgt>     Connect two concepts with a relative link and context
   init [path]            Initialize a new OKF v0.2 bundle (index.md, log.md)
   bootstrap [target-dir] Scaffold complete memory stack (skill, AGENTS.md, knowledge, Makefile)
+  agents <subcommand>    Manage AGENTS.md, lint AAG rules, and maintain SSoT tool symlinks
   mcp [bundle]           Run as a Model Context Protocol (MCP) server over stdio
   hub <subcommand>       Zero-knowledge sync and vault management (push, pull, sync, serve)
   version                Print version information
@@ -135,10 +138,18 @@ func cmdValidate(args []string) {
 	strict := fs.Bool("strict", false, "Fail on broken links, orphans, and provenance gaps")
 	drift := fs.Bool("drift", false, "Check for drift between index.md and concept descriptions")
 	stale := fs.Bool("stale", false, "Fail if any concepts are stale (past stale_after)")
+	agents := fs.Bool("agents", false, "Validate AGENTS.md against AAG rules and SSoT tool symlinks")
 	jsonOut := fs.Bool("json", false, "Output results as JSON")
 
 	bundleDir, flagArgs := defaultBundle(args)
 	_ = fs.Parse(flagArgs)
+
+	if *agents {
+		if err := runAgentsCheck([]string{fmt.Sprintf("--strict=%t", *strict)}); err != nil {
+			fmt.Fprintf(os.Stderr, "\nAgents governance check failed: %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	b, err := okf.LoadBundle(bundleDir)
 	if err != nil {
