@@ -4,6 +4,7 @@ Historical release notes for **OKF Agent Memory**.
 
 | Version | Release Date | Highlights |
 | :--- | :--- | :--- |
+| [**v0.3.0**](./v0.3.0.md) | 2026-09-15 | Agent Action Grammar (AAG) RFC & Linter, Dual-Memory Agent Architecture (DMAA), Multi-Domain Codex, SSoT Tool Symlinks |
 | [**v0.2.0**](./v0.2.0.md) | 2026-09-12 | 3-Tier Epistemic Governance, `code_refs`, `--for-path`, CWE-22 Security Hardening, Dogfooding Invariants |
 | [**v0.1.5**](./v0.1.5.md) | 2026-09-09 | Adversarial Security & DRY Hardening, Google Jules integration, boundary symlink containment |
 | [**v0.1.4**](./v0.1.4.md) | 2026-09-08 | Cross-platform Windows relative link resolution, open actor family prefixes, dot-directory scans |

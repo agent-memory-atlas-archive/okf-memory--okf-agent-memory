@@ -1,8 +1,10 @@
 ## 2026-09-15
+* **Release**: Published version v0.3.0 — Agent Action Grammar (AAG) RFC & AST Linter (`AAG-001`–`AAG-005`), Dual-Memory Agent Architecture (DMAA), Multi-Domain Codex Scaffolding (`okf agents init`), SSoT Tool Symlinks (`okf agents link`), `okf validate --agents`, and Google Jules security remediation.
+* **Update**: Updated `knowledge/roadmap/milestones.md` marking Phase 13 (DMAA & Agent Action Grammar) as completed.
 * **Update**: Linked `convention/dual-memory-architecture.md` to `architecture/layers.md` (Defines Layer 1 push working memory and Layer 2 pull domain memory).
 * **Update**: Linked `convention/dual-memory-architecture.md` to `convention/principles.md` (Specializes behavioral invariants into two cognitive memory layers).
 * **Creation**: Documented concept `convention/dual-memory-architecture.md` (Dual-Memory Agent Architecture & Agent Action Grammar).
-* **Documentation**: Reorganized `docs/` hierarchy into categorized subdirectories (`guides/`, `spec/`, `security/`, `project/`, `releases/`) and created central `docs/README.md` index. Added `docs/spec/DUAL_MEMORY_AGENT_ARCHITECTURE_RFC.md`, `docs/guides/AGENT_INSTRUCTION_BEST_PRACTICES.md`, and `docs/guides/LLM_INSTRUCTION_PATTERNS_CHEATSHEET.md`.
+* **Documentation**: Reorganized `docs/` hierarchy into categorized subdirectories (`guides/`, `spec/`, `security/`, `project/`, `releases/`) and created central `docs/README.md` index. Added `docs/spec/DUAL_MEMORY_AGENT_ARCHITECTURE_RFC.md`, `docs/spec/AGENT_ACTION_GRAMMAR_RFC.md`, `docs/guides/AGENT_INSTRUCTION_BEST_PRACTICES.md`, and `docs/guides/LLM_INSTRUCTION_PATTERNS_CHEATSHEET.md`.
 
 ## 2026-09-14
 * **Update**: Linked `architecture/zero-knowledge-vault-sync.md` to `architecture/layers.md` (Zero-knowledge sync extends the tooling and storage layers with client-side cryptography.).
