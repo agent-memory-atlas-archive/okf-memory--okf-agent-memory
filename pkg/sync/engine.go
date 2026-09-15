@@ -81,6 +81,7 @@ func (e *Engine) ScanBundle() (map[string][]byte, error) {
 		}
 		slashPath := filepath.ToSlash(relPath)
 
+		// #nosec G122,G304 -- path is enumerated within validated bundle directory
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("sync: failed to read %s: %w", relPath, err)

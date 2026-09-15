@@ -5,12 +5,14 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/okf-memory/okf-agent-memory/pkg/sync"
 	"github.com/okf-memory/okf-agent-memory/pkg/vault"
@@ -26,6 +28,7 @@ const configFileName = ".okf-vault.json"
 
 func loadVaultConfig(dir string) (*VaultConfigFile, error) {
 	cfgPath := filepath.Join(dir, configFileName)
+	// #nosec G304 -- cfgPath is within user bundle root
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", cfgPath, err)
@@ -43,6 +46,7 @@ func saveVaultConfig(dir string, cfg *VaultConfigFile) error {
 	if err != nil {
 		return err
 	}
+	// #nosec G703,G306 -- cfgPath is within user bundle root
 	return os.WriteFile(cfgPath, data, 0o644)
 }
 
@@ -260,7 +264,12 @@ func cmdHub(args []string) {
 		srv := sync.NewServer(*storage)
 		addr := fmt.Sprintf(":%d", *port)
 		fmt.Printf("Starting OKF Memory Hub server on http://localhost%s ...\n", addr)
-		if err := http.ListenAndServe(addr, srv.Handler()); err != nil {
+		httpServer := &http.Server{
+			Addr:              addr,
+			Handler:           srv.Handler(),
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 			os.Exit(1)
 		}
