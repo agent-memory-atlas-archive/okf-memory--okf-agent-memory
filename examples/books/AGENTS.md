@@ -1,6 +1,6 @@
 # AGENTS.md - DMAA Protocol v0.1 - Instructions for AI Agents in `Literature & Book Knowledge Base`
 
-> Powered by [OKF Agent Memory](https://github.com/okf-memory/okf-agent-memory) — Open Knowledge Format (OKF) v0.2 persistent project memory for AI agents.
+> Powered by [OKF Agent Memory](https://github.com/okf-memory/okf-agent-memory) -- Open Knowledge Format (OKF) v0.2 persistent project memory for AI agents.
 
 ## 0. Project & Domain Codex (Literature & Editorial Analysis)
 - TONE: style == literary_analytical, objective_scholarly, nuanced
