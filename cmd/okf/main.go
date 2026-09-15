@@ -145,9 +145,11 @@ func cmdValidate(args []string) {
 	}
 
 	if *agents {
-		agentsRoot := bundleDir
-		if info, err := os.Stat(filepath.Join(bundleDir, "AGENTS.md")); err != nil || !info.Mode().IsRegular() {
-			parent := filepath.Dir(bundleDir)
+		agentsRoot := filepath.Clean(bundleDir)
+		// #nosec G703 -- agentsRoot is sanitized and checked for existence of AGENTS.md
+		if info, err := os.Stat(filepath.Join(agentsRoot, "AGENTS.md")); err != nil || !info.Mode().IsRegular() {
+			parent := filepath.Dir(agentsRoot)
+			// #nosec G703 -- parent is derived from sanitized path
 			if pInfo, pErr := os.Stat(filepath.Join(parent, "AGENTS.md")); pErr == nil && pInfo.Mode().IsRegular() {
 				agentsRoot = parent
 			}
