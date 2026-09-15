@@ -85,7 +85,7 @@ You are acting as an Adversarial Security Specialist for the okf-agent-memory re
 Target Branch: Always branch off and open pull requests against `develop`.
 
 Task:
-1. Review all recent code modifications in `pkg/okf` and `cmd/okf` against the criteria in `docs/SECURITY_AUDIT.md`.
+1. Review all recent code modifications in `pkg/okf` and `cmd/okf` against the criteria in `docs/security/SECURITY_AUDIT.md`.
 2. Pay special attention to:
    - Path boundary containment (CWE-22) and symlink resolution (CWE-59) in `pkg/okf/bundle.go` and `pkg/okf/mutate.go`.
    - MCP tool call argument sanitization and server root confinement in `cmd/okf/mcp.go`.
