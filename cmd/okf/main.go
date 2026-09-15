@@ -140,9 +140,19 @@ func cmdValidate(args []string) {
 
 	bundleDir, flagArgs := defaultBundle(args)
 	_ = fs.Parse(flagArgs)
+	if len(fs.Args()) > 0 {
+		bundleDir = fs.Args()[0]
+	}
 
 	if *agents {
-		if err := runAgentsCheck([]string{fmt.Sprintf("--strict=%t", *strict)}); err != nil {
+		agentsRoot := bundleDir
+		if info, err := os.Stat(filepath.Join(bundleDir, "AGENTS.md")); err != nil || !info.Mode().IsRegular() {
+			parent := filepath.Dir(bundleDir)
+			if pInfo, pErr := os.Stat(filepath.Join(parent, "AGENTS.md")); pErr == nil && pInfo.Mode().IsRegular() {
+				agentsRoot = parent
+			}
+		}
+		if err := runAgentsCheck([]string{"--root", agentsRoot, fmt.Sprintf("--strict=%t", *strict)}); err != nil {
 			fmt.Fprintf(os.Stderr, "\nAgents governance check failed: %v\n", err)
 			os.Exit(1)
 		}

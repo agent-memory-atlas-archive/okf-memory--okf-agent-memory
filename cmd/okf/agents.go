@@ -136,6 +136,9 @@ func runAgentsInit(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if len(fs.Args()) > 0 && *root == "." {
+		*root = fs.Args()[0]
+	}
 
 	targetPath := filepath.Join(*root, "AGENTS.md")
 	if _, err := os.Stat(targetPath); err == nil && !*force {
@@ -168,6 +171,9 @@ func runAgentsLink(args []string) error {
 
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if len(fs.Args()) > 0 && *root == "." {
+		*root = fs.Args()[0]
 	}
 
 	if *checkOnly {
@@ -241,6 +247,9 @@ func runAgentsCheck(args []string) error {
 
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if len(fs.Args()) > 0 && *root == "." {
+		*root = fs.Args()[0]
 	}
 
 	agentsFile := filepath.Join(*root, "AGENTS.md")

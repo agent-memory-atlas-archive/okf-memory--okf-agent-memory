@@ -90,11 +90,11 @@ install:
 validate: build
 	@$(BIN) validate $(BUNDLE) --strict --drift
 
-## validate-examples: Validate all bundled example corpora
+## validate-examples: Validate all bundled example corpora including AGENTS.md governance
 validate-examples: build
-	@$(BIN) validate examples/software/knowledge --strict
-	@$(BIN) validate examples/coaching/knowledge --strict
-	@$(BIN) validate examples/books/knowledge --strict
+	@$(BIN) validate --agents --strict examples/software
+	@$(BIN) validate --agents --strict examples/coaching
+	@$(BIN) validate --agents --strict examples/books
 
 ## validate-all: Validate project knowledge and all examples
 validate-all: validate validate-examples
