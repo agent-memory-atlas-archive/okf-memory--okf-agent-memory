@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"unicode"
 )
@@ -16,11 +17,13 @@ var validModalPrefixes = []string{
 
 // LintFile reads a file and lints it according to AAG rules.
 func LintFile(path string, opts LinterOptions) (*LintResult, error) {
-	data, err := os.ReadFile(path)
+	cleanPath := filepath.Clean(path)
+	// #nosec G304 -- cleanPath is explicitly provided by user/caller for CLI linting
+	data, err := os.ReadFile(cleanPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
+		return nil, fmt.Errorf("failed to read file %s: %w", cleanPath, err)
 	}
-	res := LintContent(path, data, opts)
+	res := LintContent(cleanPath, data, opts)
 	return res, nil
 }
 

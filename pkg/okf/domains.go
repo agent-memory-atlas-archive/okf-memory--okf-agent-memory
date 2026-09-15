@@ -82,6 +82,9 @@ func GenerateAgentsMarkdown(projectName, domainName string) (string, error) {
 		domain = domains["software"]
 	}
 
+	projectName = strings.ReplaceAll(projectName, "\n", "")
+	projectName = strings.ReplaceAll(projectName, "\r", "")
+	projectName = strings.TrimSpace(projectName)
 	if projectName == "" {
 		projectName = domain.Title
 	}
