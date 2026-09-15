@@ -1116,3 +1116,48 @@ Also invalid navigation: [Root Agents](../AGENTS.md), [Root Log](../log.md), and
 		}
 	}
 }
+
+func TestLoadBundle_ProjectRootWithKnowledgeSubdirAndAgentsMD(t *testing.T) {
+	projDir := t.TempDir()
+	agentsMD := filepath.Join(projDir, "AGENTS.md")
+	if err := os.WriteFile(agentsMD, []byte("# AGENTS.md\nRules here...\n"), 0o644); err != nil {
+		t.Fatalf("failed to write AGENTS.md: %v", err)
+	}
+
+	knowledgeDir := filepath.Join(projDir, "knowledge")
+	if err := os.MkdirAll(knowledgeDir, 0o755); err != nil {
+		t.Fatalf("failed to create knowledge dir: %v", err)
+	}
+	indexMD := filepath.Join(knowledgeDir, "index.md")
+	if err := os.WriteFile(indexMD, []byte("---\nokf_version: \"0.2\"\n---\n# KB\n"), 0o644); err != nil {
+		t.Fatalf("failed to write index.md: %v", err)
+	}
+	conceptMD := filepath.Join(knowledgeDir, "fact.md")
+	if err := os.WriteFile(conceptMD, []byte("---\ntitle: Fact\ntype: Fact\ndescription: Test fact\n---\nContent\n"), 0o644); err != nil {
+		t.Fatalf("failed to write fact.md: %v", err)
+	}
+
+	// Load directly from project root (not knowledge/)
+	b, err := okf.LoadBundle(projDir)
+	if err != nil {
+		t.Fatalf("LoadBundle on project root failed: %v", err)
+	}
+
+	if b.DeclaredVer != "0.2" {
+		t.Errorf("Expected DeclaredVer '0.2', got %q", b.DeclaredVer)
+	}
+	if len(b.Concepts) != 1 {
+		t.Errorf("Expected 1 concept, got %d (%+v)", len(b.Concepts), b.Concepts)
+	}
+	if _, ok := b.Concepts["fact"]; !ok {
+		t.Errorf("Expected concept 'fact' to be loaded")
+	}
+	if _, ok := b.Concepts["AGENTS"]; ok {
+		t.Errorf("AGENTS.md should not be loaded as a concept")
+	}
+
+	res := okf.Validate(b, okf.ValidateOptions{Strict: true})
+	if !res.IsConformant || !res.GatePassed {
+		t.Errorf("Expected valid conformant bundle, got errors: %v, warnings: %v", res.Errors, res.Warnings)
+	}
+}
