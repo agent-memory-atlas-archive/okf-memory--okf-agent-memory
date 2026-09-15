@@ -1,3 +1,10 @@
+## 2026-09-15
+* **Update**: Linked `convention/dual-memory-architecture.md` to `architecture/layers.md` (Defines Layer 1 push working memory and Layer 2 pull domain memory).
+* **Update**: Linked `convention/dual-memory-architecture.md` to `convention/principles.md` (Specializes behavioral invariants into two cognitive memory layers).
+* **Creation**: Documented concept `convention/dual-memory-architecture.md` (Dual-Memory Agent Architecture & Agent Action Grammar).
+* **Creation**: Documented concept `--help.md` (--help).
+* **Documentation**: Reorganized `docs/` hierarchy into categorized subdirectories (`guides/`, `spec/`, `security/`, `project/`, `releases/`) and created central `docs/README.md` index. Added `docs/spec/DUAL_MEMORY_AGENT_ARCHITECTURE_RFC.md`, `docs/guides/AGENT_INSTRUCTION_BEST_PRACTICES.md`, and `docs/guides/LLM_INSTRUCTION_PATTERNS_CHEATSHEET.md`.
+
 ## 2026-09-12
 * **Release**: Published version v0.2.0 — Epistemic Governance & Code-to-Knowledge Binding Release.
 * **Infrastructure**: Automated GitHub Actions release pipeline to ingest release notes from `docs/releases/${VERSION}.md` with fail-fast CI gate.
