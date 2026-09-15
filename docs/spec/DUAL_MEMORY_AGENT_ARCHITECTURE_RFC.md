@@ -15,7 +15,7 @@ Modern AI agents across all domains—from scientific research, enterprise gover
 2. **The RAG Blindspot:** Behavioral, ethical, and formatting rules are offloaded into vector databases or retrieval folders. Under standard user prompts, semantic search fails to surface operational rules (e.g., *"Always format citations in IEEE style"* or *"Never disclose client PII"* is never retrieved for a general subject query). The agent inevitably falls back to hallucinated formats.
 
 The **Dual-Memory Agent Architecture (DMAA)** solves this dilemma through a strict, domain-neutral, cognitively grounded two-layer model:
-* **Layer 1: Normative Working Memory (Push Layer):** A permanent, ultra-compact behavioral codex expressed in **Agent Action Grammar (AAG)** (~100 tokens) loaded into the context at session start. Defines project-specific rules, tone, ethics, and formatting constraints.
+* **Layer 1: Normative Working Memory (Push Layer):** A permanent, ultra-compact behavioral codex expressed in [**Agent Action Grammar (AAG)**](AGENT_ACTION_GRAMMAR_RFC.md) (~100 tokens) loaded into the context at session start. Defines project-specific rules, tone, ethics, and formatting constraints.
 * **Layer 2: Semantic Knowledge Memory (Pull Layer):** A persistent, structured domain memory bundle adhering to **Open Knowledge Format (OKF v0.2)** that consumes 0 initial tokens and is retrieved selectively via native tool calling (`okf_search`).
 
 ---
