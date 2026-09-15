@@ -1,20 +1,21 @@
 # RFC: Dual-Memory Agent Architecture (DMAA)
 
+> **Specification:** Dual-Memory Agent Architecture (DMAA) v0.1  
 > **Status:** Draft / Community Proposal  
 > **Authors:** AI & Human Pair-Programming Co-Design  
 > **OKF Concept ID:** `conventions/dual-memory-architecture`  
-> **Target Audience:** AI Agent Architects, LLM Providers (Google, OpenAI, Anthropic), and Tool Builders (Cursor, Windsurf, Claude Code, Cline)
+> **Target Audience:** AI Agent Architects, LLM Providers (Google, OpenAI, Anthropic), Tool Builders (Cursor, Windsurf, Claude Code, Cline), Researchers, Organizations, and Knowledge Creators across all domains
 
 ---
 
 ## 1. Abstract
 
-Modern AI coding agents face a critical context and memory architecture bottleneck:
-1. **The Prompt Monolith:** All behavioral directives, coding conventions, and domain facts are indiscriminately shoved into the system prompt. This leads to context bloat, runaway inference costs, and attention drift (the agent starts ignoring critical instructions).
-2. **The RAG Blindspot:** Behavioral and formatting rules are offloaded into vector databases or retrieval folders. Under standard user prompts, semantic search fails to surface operational rules (e.g., *"Always generate diagrams using Mermaid syntax"* is never retrieved for an "auth pipeline" query). The agent inevitably falls back to hallucinated formats.
+Modern AI agents across all domains—from scientific research, enterprise governance, legal and medical analysis, executive coaching, to software engineering—face a critical context and memory architecture bottleneck:
+1. **The Prompt Monolith:** All behavioral directives, domain methodologies, and reference facts are indiscriminately shoved into the system prompt. This leads to context bloat, runaway inference costs, and attention drift (the agent starts ignoring critical instructions).
+2. **The RAG Blindspot:** Behavioral, ethical, and formatting rules are offloaded into vector databases or retrieval folders. Under standard user prompts, semantic search fails to surface operational rules (e.g., *"Always format citations in IEEE style"* or *"Never disclose client PII"* is never retrieved for a general subject query). The agent inevitably falls back to hallucinated formats.
 
-The **Dual-Memory Agent Architecture (DMAA)** solves this dilemma through a strict, cognitively grounded two-layer model:
-* **Layer 1: Normative Working Memory (Push Layer):** A permanent, ultra-compact behavioral codex expressed in **Agent Action Grammar (AAG)** (~100 tokens) loaded into the context at session start.
+The **Dual-Memory Agent Architecture (DMAA)** solves this dilemma through a strict, domain-neutral, cognitively grounded two-layer model:
+* **Layer 1: Normative Working Memory (Push Layer):** A permanent, ultra-compact behavioral codex expressed in **Agent Action Grammar (AAG)** (~100 tokens) loaded into the context at session start. Defines project-specific rules, tone, ethics, and formatting constraints.
 * **Layer 2: Semantic Knowledge Memory (Pull Layer):** A persistent, structured domain memory bundle adhering to **Open Knowledge Format (OKF v0.2)** that consumes 0 initial tokens and is retrieved selectively via native tool calling (`okf_search`).
 
 ---
@@ -27,7 +28,7 @@ flowchart TD
         direction TB
         C1["Anchored in AGENTS.md / CODEX.md"]
         C2["Expressed in compact AAG syntax (~80-150 tokens)"]
-        C3["Enforces guardrails: Tone, Formats (Mermaid), Tool preferences, Assertions"]
+        C3["Enforces guardrails: Tone, Ethics, Output formats, Tool preferences, Assertions"]
     end
 
     subgraph PULL["2. SEMANTIC KNOWLEDGE MEMORY (Pull / On-Demand)"]
@@ -35,7 +36,7 @@ flowchart TD
         O1["Stored in OKF v0.2 Bundle (knowledge/)"]
         O2["Consumes 0 tokens at session start"]
         O3["Queried selectively via okf_search(query) when relevant"]
-        O4["Contains: Architectural decisions, Schemas, Domain facts"]
+        O4["Contains: Domain facts, Research notes, Client logs, Decisions, Schemas"]
     end
 
     INPUT["User Prompt"] --> PUSH
@@ -54,25 +55,39 @@ flowchart TD
 * **Location:** Canonical `AGENTS.md` at repository root (symlinked to `CLAUDE.md`, `.cursorrules`, etc.).
 * **Syntax:** Exclusively **Agent Action Grammar (AAG)** — no lexical padding, only dense, deterministic operators (`ASSERT`, `=>`, `!`, `MUST`).
 * **Budget:** Strictly capped at **150–200 tokens**.
-* **Responsibilities:**
-  - **Output Formats:** e.g., `diagrams => ASSERT(syntax == mermaid)`
-  - **Communication & Tone:** e.g., technical directness, zero pleasantries, formal or informal mode
-  - **Engineering Guardrails:** e.g., `typescript_strict == true`, Vitest test runner
+* **Composition Model:**
+  $$\text{AGENTS.md} = \underbrace{\text{Project Codex (Domain Invariants)}}_{\text{Customizable rules in AAG}} + \underbrace{\text{OKF Memory Bridge}}_{\text{Standardized memory protocol}}$$
+* **Domain Responsibilities:**
+  - **Output Formats:** e.g., `diagrams => ASSERT(syntax == mermaid)` | `formulas => ASSERT(syntax == latex)`
+  - **Communication & Tone:** e.g., technical directness, academic rigor, or coaching empathy
+  - **Domain Guardrails:** e.g., strict typing (software), APA citation (research), HIPAA/GDPR constraints (healthcare/enterprise)
   - **Bootstrap Bridge:** The mandatory rule directing the agent to consult OKF memory when domain facts are needed.
 
-#### Example of a Valid DMAA Codex (`AGENTS.md`):
+#### Example of a Valid DMAA Codex across Different Domains (`AGENTS.md`):
+
+##### A. General / Engineering Project:
 ```markdown
-# AGENTS.md — DMAA Protocol v1.0
+# AGENTS.md — DMAA Protocol v0.1
 
-## 1. Behavioral Invariants
-- FORMAT: diagrams => ASSERT(syntax == mermaid)
-- COMMUNICATION: style == technical_direct, no_pleasantries
+## 0. Project Invariants
 - CODE: enforce(clean_architecture, strict_typing)
-- TOOLS: PREFER native_mcp OVER cli
+- FORMAT: diagrams => ASSERT(syntax == mermaid)
 
-## 2. Memory Bridge
+## 1. Memory Bridge & Governance
 - KNOWLEDGE: ON architectural_task|domain_query => MUST okf_search(query)
 - GOVERNANCE: ON edit(@subsystem/): IF hold => STOP("Subsystem frozen")
+```
+
+##### B. Scientific Research / Academic Project:
+```markdown
+# AGENTS.md — DMAA Protocol v0.1
+
+## 0. Research Invariants
+- CITATIONS: ASSERT(format == "APA-7th", sources >= 1)
+- METHODOLOGY: ON claim_made => MUST cite_evidence(peer_reviewed)
+
+## 1. Memory Bridge
+- KNOWLEDGE: ON literature_review|hypothesis => MUST okf_search(query=keywords, limit=3)
 ```
 
 ---
