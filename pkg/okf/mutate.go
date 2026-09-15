@@ -208,8 +208,10 @@ func resolveInBundle(bundleDir, relPath string) (string, error) {
 		return "", fmt.Errorf("failed to resolve bundle directory: %w", err)
 	}
 
-	normRelPath := strings.ReplaceAll(relPath, "\\", "/")
-	cleanRel := filepath.Clean(filepath.FromSlash(normRelPath))
+	// Normalize backslashes to forward slashes before calling filepath.Clean
+	// to prevent Windows-style backslash traversal vectors (e.g. "..\..\file") on POSIX OS.
+	normRel := filepath.ToSlash(relPath)
+	cleanRel := filepath.Clean(normRel)
 	full := filepath.Join(absBundle, cleanRel)
 	rel, err := filepath.Rel(absBundle, full)
 	if err != nil {
@@ -221,7 +223,7 @@ func resolveInBundle(bundleDir, relPath string) (string, error) {
 	}
 	// Check reserved filenames on relative path (index.md anywhere, root log.md, root AGENTS.md)
 	relBase := filepath.Base(cleanRel)
-	normRel := filepath.ToSlash(rel)
+	normRel = filepath.ToSlash(rel)
 	if rel == "." || cleanRel == "." ||
 		strings.EqualFold(relBase, "index") || strings.EqualFold(relBase, "index.md") ||
 		strings.EqualFold(normRel, "log.md") || strings.EqualFold(normRel, "AGENTS.md") {
@@ -296,6 +298,13 @@ func sanitizeConceptMetadata(c *Concept) error {
 
 // SaveConcept writes a concept file to disk and optionally executes automatic bookkeeping.
 func SaveConcept(bundleDir string, c *Concept, isNew, autoLog, autoIndex bool, actor string) error {
+	if c.ID == "" && c.Path != "" {
+		c.ID = strings.TrimSuffix(c.Path, ".md")
+	}
+	if err := ValidateConceptID(c.ID); err != nil {
+		return fmt.Errorf("invalid concept ID: %w", err)
+	}
+
 	fullPath, err := resolveInBundle(bundleDir, c.Path)
 	if err != nil {
 		return err
