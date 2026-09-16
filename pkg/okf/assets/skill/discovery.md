@@ -30,7 +30,7 @@ To prevent blowing up the LLM context window with large repositories, follow the
 
 ```mermaid
 flowchart TD
-    L1["Level 1: Bundle Root<br/><code>knowledge/index.md</code> + <code>log.md</code><br/><i>Scope & recent changes</i>"]
+    L1["Level 1: Working Memory (AGENTS.md)<br/><i>AAG guard clauses & trigger rules</i>"]
     L2["Level 2: Fast Search<br/><code>okf_search</code> / <code>okf search</code><br/><i>BM25 keyword/relevance match</i>"]
     L3["Level 3: Concept Inspection<br/><code>okf_show</code> / <code>okf show</code><br/><i>Frontmatter, body & direct links</i>"]
     L4["Level 4: Graph Traversal<br/><i>Follow links only when deeper context is required</i>"]
@@ -171,7 +171,8 @@ okf show architecture/auth knowledge
 ## 4. Discovery Checklist for Agents
 
 When starting any new task, run through this quick checklist:
+- [ ] Am I triggered by an AAG guard clause (`ON edit(@path/)` or explicit user query)?
 - [ ] Have I searched for keywords related to the feature or bug (`okf_search` or `okf search "<keywords>"`)?
-- [ ] Is there an existing decision or constraint that restricts this implementation?
-- [ ] Is any relevant concept marked with `status: deprecated` or has an expired `stale_after` date?
-- [ ] If found, did I inspect the related concepts linked in its graph?
+- [ ] Have I checked governance for target paths (`okf_search(for_path="<path>")`)?
+- [ ] Have I inspected only genuinely relevant concepts (`okf_show`), rather than dumping files?
+- [ ] Did I avoid blanket scans of `knowledge/` via `list_dir` or raw file readers?

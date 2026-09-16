@@ -168,9 +168,13 @@ Always ensure strict bundle conformance at the end of every workflow:
     "strict": true
   }
   ```
-- **CLI Fallback**:
+- **CLI Fallback (Bundle Only)**:
   ```bash
   okf validate knowledge --strict --drift
+  ```
+- **CLI Fallback (Full Agent Workspace & AAG Rules)**:
+  ```bash
+  okf validate --agents --strict .
   ```
 Output:
 ```

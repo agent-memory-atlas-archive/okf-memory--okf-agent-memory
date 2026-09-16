@@ -108,4 +108,4 @@ okf update architecture/auth knowledge \
 After updating any concept:
 - [ ] Has `knowledge/log.md` been updated with a dated entry? (Automatic with `okf_update` / `okf update`).
 - [ ] Have you checked for orphaned links or concepts that depended on the old behavior?
-- [ ] Run `okf_validate(strict=true)` or `okf validate knowledge --strict --drift` to verify zero errors or broken links.
+- [ ] Run `okf_validate(strict=true)` or `okf validate --agents --strict .` to verify zero errors or broken links.

@@ -116,4 +116,4 @@ After completing any significant coding or research session, ask:
 1. Did I make or encounter an architectural choice? $\rightarrow$ Record in `knowledge/architecture/` or `knowledge/decisions/`.
 2. Did I discover a non-obvious solution or constraint? $\rightarrow$ Record under relevant concept.
 3. Did I write raw scratchpads or chat noise? $\rightarrow$ **Clean up and delete them.**
-4. Did I validate conformance? $\rightarrow$ Run `okf_validate(strict=true)` or `okf validate knowledge --strict --drift` and ensure 0 errors.
+4. Did I validate conformance? $\rightarrow$ Run `okf_validate(strict=true)` or `okf validate --agents --strict .` and ensure 0 errors.
