@@ -23,13 +23,13 @@ This benchmark suite measures the quantitative impact of the **Dual-Memory Agent
 
 ## 📊 Live Benchmark Evidence
 
-### Apple Silicon M2 Pro (32 GB) — Full DMAA Benchmark Run (`--dry-run` simulation)
+### Apple Silicon M2 Pro (32 GB) — Empirical DMAA Benchmark (`qwen/qwen2.5-coder-14b` via LM Studio)
 
 | Architecture Tier | Industry Monolith | OKF DMAA Stack | Savings / Acceleration |
 | :--- | :--- | :--- | :--- |
-| **Layer 1 (Push Working Memory)** | `687 tok` | `270 tok` | **-60.7% steering tax** (6.0x faster TTFT) |
-| **Layer 2 (Pull Knowledge Memory)** | `2,981 tok` | `550 tok` | **-81.5% context overhead** (15.1x faster TTFT) |
-| **Combined System Overhead** | `3,668 tok` | `820 tok` | **-77.6% less context tax per turn** |
+| **Layer 1 (Push Working Memory)** | `687 tok` | `270 tok` | **-60.7% steering tax** (2.3x faster TTFT) |
+| **Layer 2 (Pull Knowledge Memory)** | `3,055 tok` | `627 tok` | **-79.5% context overhead** (4.7x faster TTFT) |
+| **Combined System Overhead** | `3,742 tok` | `897 tok` | **🔥 -76.0% context tax per turn** (3.9x faster TTFT) |
 
 ---
 
@@ -37,13 +37,7 @@ This benchmark suite measures the quantitative impact of the **Dual-Memory Agent
 
 The benchmark runner `okf-benchmark` is written in **100% pure Go** with zero external dependencies.
 
-### 1. Zero-Cost Simulation (Dry Run)
-```bash
-# Verify prompt assembly, token metrics, and report generation
-go run ./cmd/okf-benchmark --dry-run -suite dmaa
-```
-
-### 2. Local LLMs (LM Studio or Ollama)
+### 1. Local LLMs (LM Studio or Ollama)
 ```bash
 # 1. Local LM Studio (Default, listening on http://localhost:1234)
 go run ./cmd/okf-benchmark -suite push

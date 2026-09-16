@@ -102,13 +102,7 @@ Across standard benchmark runs, the combined DMAA architecture achieves **75%–
 
 The benchmark runner is written in pure Go with zero external dependencies.
 
-### 4.1 Dry-Run Simulation (Zero API Cost)
-```bash
-# Verify prompt assembly, token metrics, and report generation
-go run ./cmd/okf-benchmark -dry-run -suite dmaa
-```
-
-### 4.2 Local Inference via LM Studio (Default)
+### 4.1 Local Inference via LM Studio (Default)
 1. Launch [LM Studio](https://lmstudio.ai/) and load a model (e.g. Qwen 2.5 Coder, Gemma 2, Llama 3.2).
 2. Start the Local Server on port `1234`.
 3. Run:
