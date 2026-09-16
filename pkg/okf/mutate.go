@@ -11,6 +11,8 @@ import (
 	"unicode"
 )
 
+var newlineReplacer = strings.NewReplacer("\r", " ", "\n", " ")
+
 func titleCase(s string) string {
 	if s == "" {
 		return ""
@@ -92,6 +94,10 @@ func ValidateConceptID(id string) error {
 	cleanID := strings.TrimSuffix(trimmed, ".md")
 	if cleanID == "" || cleanID == "." || cleanID == ".." {
 		return fmt.Errorf("invalid concept ID %q", id)
+	}
+
+	if strings.HasPrefix(cleanID, "-") {
+		return fmt.Errorf("concept ID %q cannot start with a hyphen -", id)
 	}
 
 	if filepath.IsAbs(cleanID) || strings.HasPrefix(cleanID, "/") || strings.HasPrefix(cleanID, "\\") ||
@@ -363,7 +369,7 @@ func SaveConcept(bundleDir string, c *Concept, isNew, autoLog, autoIndex bool, a
 
 // RelateConcepts creates a relative markdown link between source and target concepts.
 func RelateConcepts(bundleDir, sourceID, targetID, relationDesc, actor string) error {
-	relationDesc = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(relationDesc, "\r", " "), "\n", " "))
+	relationDesc = strings.TrimSpace(newlineReplacer.Replace(relationDesc))
 
 	sourceID = strings.TrimSpace(strings.TrimSuffix(sourceID, ".md"))
 	targetID = strings.TrimSpace(strings.TrimSuffix(targetID, ".md"))

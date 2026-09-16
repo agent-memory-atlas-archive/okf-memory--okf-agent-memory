@@ -11,10 +11,26 @@ import (
 	"github.com/okf-memory/okf-agent-memory/pkg/okf/aag"
 )
 
+func isAgentsHelpArg(arg string) bool {
+	return arg == "--help" || arg == "-h" || arg == "help"
+}
+
+func hasAgentsHelpFlag(args []string) bool {
+	for _, a := range args {
+		if isAgentsHelpArg(a) {
+			return true
+		}
+	}
+	return false
+}
+
 func cmdAgents(args []string) {
-	if len(args) < 1 {
+	if len(args) < 1 || hasAgentsHelpFlag(args) && len(args) == 1 {
 		printAgentsUsage()
-		os.Exit(1)
+		if len(args) < 1 {
+			os.Exit(1)
+		}
+		return
 	}
 
 	subcmd := args[0]
@@ -22,30 +38,131 @@ func cmdAgents(args []string) {
 
 	switch subcmd {
 	case "lint":
+		if hasAgentsHelpFlag(subArgs) {
+			printAgentsLintUsage()
+			return
+		}
 		if err := runAgentsLint(subArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	case "init":
+		if hasAgentsHelpFlag(subArgs) {
+			printAgentsInitUsage()
+			return
+		}
 		if err := runAgentsInit(subArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	case "link":
+		if hasAgentsHelpFlag(subArgs) {
+			printAgentsLinkUsage()
+			return
+		}
 		if err := runAgentsLink(subArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	case "check":
+		if hasAgentsHelpFlag(subArgs) {
+			printAgentsCheckUsage()
+			return
+		}
 		if err := runAgentsCheck(subArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
+	case "help", "--help", "-h":
+		printAgentsUsage()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown agents command '%s'\n\n", subcmd)
 		printAgentsUsage()
 		os.Exit(1)
 	}
+}
+
+func printAgentsLintUsage() {
+	fmt.Print(`Lint an AGENTS.md file against AAG rules (AAG-001 to AAG-005) and token budget limits.
+
+Usage:
+  okf agents lint [file] [flags]
+
+Arguments:
+  [file]                 Path to AGENTS.md file to lint (default: AGENTS.md)
+
+Flags:
+  --strict               Treat warnings as fatal errors (exit code 1)
+  --budget <int>         Maximum token budget cap (default: 400)
+  --json                 Output findings as structured JSON
+
+Examples:
+  okf agents lint
+  okf agents lint path/to/AGENTS.md --strict
+  okf agents lint --budget 300 --json
+`)
+}
+
+func printAgentsInitUsage() {
+	fmt.Print(`Scaffold a curated, domain-specific AGENTS.md codex for a new or existing repository.
+
+Usage:
+  okf agents init [flags] [root-dir]
+
+Flags:
+  --domain <name>        Domain profile: software, research, legal, coaching, books (default: software)
+  --name <name>          Project name (defaults to target directory name)
+  --root <path>          Target repository root directory (default: .)
+  --force                Overwrite existing AGENTS.md if present
+
+Examples:
+  okf agents init --domain=software
+  okf agents init --domain=coaching --name="Executive Coaching Practice"
+  okf agents init --domain=books --force
+`)
+}
+
+func printAgentsLinkUsage() {
+	fmt.Print(`Create and maintain SSoT tool symlinks from canonical AGENTS.md to editor config files.
+
+Links created:
+  - CLAUDE.md                      -> AGENTS.md (Claude Code)
+  - .cursorrules                   -> AGENTS.md (Cursor)
+  - .windsurfrules                 -> AGENTS.md (Windsurf)
+  - .github/copilot-instructions.md -> ../AGENTS.md (GitHub Copilot)
+
+Usage:
+  okf agents link [root-dir] [flags]
+
+Flags:
+  --check                Verify symlink status without modifying files
+  --force                Overwrite existing non-symlink files with symlinks
+  --root <path>          Target repository root directory (default: .)
+  --json                 Output symlink status as JSON
+
+Examples:
+  okf agents link
+  okf agents link --check
+  okf agents link --force
+`)
+}
+
+func printAgentsCheckUsage() {
+	fmt.Print(`Run an all-in-one CI validation check: AAG rule linting + SSoT tool symlink integrity.
+
+Usage:
+  okf agents check [flags]
+
+Flags:
+  --root <path>          Repository root containing AGENTS.md (default: .)
+  --strict               Treat warnings as fatal errors
+  --budget <int>         Token budget cap (default: 400)
+  --json                 Output verification report as JSON
+
+Examples:
+  okf agents check
+  okf agents check --strict
+`)
 }
 
 func printAgentsUsage() {

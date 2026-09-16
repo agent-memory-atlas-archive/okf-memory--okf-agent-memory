@@ -163,6 +163,10 @@ func TestValidateConceptID(t *testing.T) {
 		"",
 		".",
 		"..",
+		"--help",
+		"-h",
+		"-flag",
+		"--flag",
 	}
 	for _, id := range invalidIDs {
 		if err := ValidateConceptID(id); err == nil {

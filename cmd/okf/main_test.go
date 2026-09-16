@@ -75,3 +75,26 @@ func TestSplitOptionalPath(t *testing.T) {
 		})
 	}
 }
+
+func TestHasHelpFlag(t *testing.T) {
+	tests := []struct {
+		args []string
+		want bool
+	}{
+		{[]string{"--help"}, true},
+		{[]string{"-h"}, true},
+		{[]string{"help"}, true},
+		{[]string{"architecture/database", "--help"}, true},
+		{[]string{"architecture/database", "-h"}, true},
+		{[]string{"--type", "Decision", "--help"}, true},
+		{[]string{"architecture/database"}, false},
+		{[]string{"--type", "Fact"}, false},
+		{nil, false},
+	}
+
+	for _, tt := range tests {
+		if got := hasHelpFlag(tt.args); got != tt.want {
+			t.Errorf("hasHelpFlag(%v) = %v, want %v", tt.args, got, tt.want)
+		}
+	}
+}
