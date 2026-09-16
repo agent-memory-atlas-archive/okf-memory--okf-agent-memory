@@ -666,7 +666,8 @@ func runLayer1PushBenchmark(cfg *providerConfig, resolvedDataDir string, maxToke
 	fmt.Println("  DMAA LAYER 1 BENCHMARK: PUSH WORKING MEMORY (AAG vs. PROSE)")
 	fmt.Println(strings.Repeat("=", 72))
 
-	prosePath := filepath.Join(resolvedDataDir, "PROSE_RULES.md")
+	prosePath := filepath.Clean(filepath.Join(resolvedDataDir, "PROSE_RULES.md"))
+	// #nosec G304 -- benchmark fixture path is resolved from local benchmark data directory
 	proseBytes, err := os.ReadFile(prosePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[!] Could not read %s: %v\n", prosePath, err)
@@ -674,7 +675,8 @@ func runLayer1PushBenchmark(cfg *providerConfig, resolvedDataDir string, maxToke
 	}
 	proseRules := string(proseBytes)
 
-	aagPath := filepath.Join(resolvedDataDir, "AAG_RULES.md")
+	aagPath := filepath.Clean(filepath.Join(resolvedDataDir, "AAG_RULES.md"))
+	// #nosec G304 -- benchmark fixture path is resolved from local benchmark data directory
 	aagBytes, err := os.ReadFile(aagPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[!] Could not read %s: %v\n", aagPath, err)
@@ -837,7 +839,8 @@ func runLayer2PullBenchmark(cfg *providerConfig, resolvedDataDir string, maxToke
 	fmt.Println("  DMAA LAYER 2 BENCHMARK: PULL KNOWLEDGE MEMORY (PROGRESSIVE DISCLOSURE)")
 	fmt.Println(strings.Repeat("=", 72))
 
-	monolithPath := filepath.Join(resolvedDataDir, "MONOLITH_DOCS.md")
+	monolithPath := filepath.Clean(filepath.Join(resolvedDataDir, "MONOLITH_DOCS.md"))
+	// #nosec G304 -- benchmark fixture path is resolved from local benchmark data directory
 	monolithBytes, err := os.ReadFile(monolithPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[!] Could not read %s: %v\n", monolithPath, err)
