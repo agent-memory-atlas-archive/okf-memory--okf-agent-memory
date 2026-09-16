@@ -64,14 +64,12 @@ graph TD
     F --> G[Encrypt Payload]
     G --> H[Attach Metadata Header]
     H --> I[Return Encrypted Payload]
-    
     subgraph sg_1 ["Encryption Process"]
         B --> E
         B --> F
         B --> G
         B --> H
     end
-    
     style A fill:#cde4ff,stroke:#6495ED,stroke-width:2px
     style B fill:#f0f8ff,stroke:#4682B4,stroke-width:2px
     style C fill:#fff0f5,stroke:#cd5c5c,stroke-width:2px

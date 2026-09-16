@@ -689,15 +689,20 @@ func sanitizeMermaidDiagrams(text string) string {
 			return fmt.Sprintf("%ssubgraph %s [\"%s\"]", indent, id, title)
 		})
 
-		// 2. Fix: unquoted node labels containing special chars like {, }, ", or colons
+		// 2. Fix: filter blank/whitespace lines and sanitize unquoted node labels
 		lines := strings.Split(body, "\n")
-		for i, line := range lines {
+		var cleanLines []string
+		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
+			if trimmed == "" {
+				continue
+			}
 			if strings.HasPrefix(trimmed, "%%") || strings.HasPrefix(trimmed, "classDef") || strings.HasPrefix(trimmed, "style") {
+				cleanLines = append(cleanLines, line)
 				continue
 			}
 
-			lines[i] = nodeSquareBracketRegex.ReplaceAllStringFunc(line, func(node string) string {
+			sanitizedLine := nodeSquareBracketRegex.ReplaceAllStringFunc(line, func(node string) string {
 				match := nodeSquareBracketRegex.FindStringSubmatch(node)
 				id := match[1]
 				content := match[2]
@@ -716,10 +721,11 @@ func sanitizeMermaidDiagrams(text string) string {
 
 				return node
 			})
+			cleanLines = append(cleanLines, sanitizedLine)
 		}
-		body = strings.Join(lines, "\n")
+		body = strings.Join(cleanLines, "\n")
 
-		return "```mermaid\n" + body + "```"
+		return "```mermaid\n" + body + "\n```"
 	})
 }
 
