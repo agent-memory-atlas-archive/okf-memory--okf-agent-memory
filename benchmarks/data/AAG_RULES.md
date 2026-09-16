@@ -2,7 +2,7 @@
 
 ## 0. Project & Domain Codex
 - TONE: style == direct_concise
-- FORMAT: diagrams => ASSERT(syntax == mermaid, ELSE=STOP("Mermaid required; ASCII/box art prohibited."))
+- FORMAT: diagrams => ASSERT(syntax == mermaid, quote_labels == true, ELSE=STOP("Mermaid required; quote node labels with special characters or braces; ASCII/box art prohibited."))
 
 ## 1. Behavioral Invariants (RFC 2119)
 - MUST use AES-256-GCM with 96-bit (12-byte) nonce for all payload encryption.
