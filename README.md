@@ -16,14 +16,52 @@
 
 Conversations with AI agents reset when context windows close. Valuable architectural decisions, domain discoveries, and operational facts are lost unless stored persistently.
 
-**OKF Agent Memory** provides a standardized, vendor-neutral memory layer that lives directly in your repository (`knowledge/`) as plain Markdown files with YAML frontmatter. It bridges the gap between unstructured ad-hoc markdown files (`CLAUDE.md`, `AGENTS.md`) and complex, black-box vector databases.
+Traditional approaches suffer from two fatal failure modes:
+1. **The Prompt Monolith**: Stuffing all domain knowledge and rules into `AGENTS.md` or `CLAUDE.md` creates massive context bloat and causes **attention drift** (agents ignore critical instructions).
+2. **The RAG Blindspot**: Dumping behavioral rules into vector databases fails because agents never semantically search for operational constraints (e.g. formatting or security rules) during general tasks.
+
+**OKF Agent Memory** resolves this dilemma with the **Dual-Memory Agent Architecture (DMAA)**:
+
+```mermaid
+flowchart TD
+    subgraph PUSH["1. Normative Working Memory (Push Layer)"]
+        direction TB
+        C1["Canonical AGENTS.md (~100-150 tokens)"]
+        C2["Domain Codex (Invariants, Ethics, Tone)"]
+        C3["OKF Memory Bridge (Deterministic Triggers)"]
+        C4["Agent Action Grammar (AAG) Micro-Syntax"]
+    end
+
+    subgraph PULL["2. Semantic Domain Memory (Pull Layer)"]
+        direction TB
+        O1["OKF v0.2 Knowledge Bundle (knowledge/)"]
+        O2["0 Tokens baseline in system prompt"]
+        O3["Selective Retrieval via okf_search / okf_show"]
+        O4["Persistent Graph of Decisions, Facts & Runbooks"]
+    end
+
+    INPUT["User Request"] --> PUSH
+    PUSH -->|Enforces Domain Codex & Triggers| AGENT["AI Agent (LLM)"]
+    AGENT -->|Selective Retrieval| PULL
+    PULL -->|Context & Facts| AGENT
+    AGENT --> OUTPUT["Deterministic Response"]
+```
+
+### The Universal Composition Model
+
+In DMAA, every agent configuration is structured by a universal composition:
+
+$$\text{AGENTS.md} = \underbrace{\text{Domain Codex (AAG)}}_{\text{Project Invariants, Tone, Guardrails}} + \underbrace{\text{OKF Memory Bridge}}_{\text{Standardized Triggers: Search-Before-Write}}$$
+
+* **Layer 1: Normative Working Memory (Push Layer)**: A permanent, ultra-compact behavioral codex (~100–150 tokens) expressed in [**Agent Action Grammar (AAG)**](docs/spec/AGENT_ACTION_GRAMMAR_RFC.md). Loaded at session start, enforcing zero-tolerance invariants.
+* **Layer 2: Semantic Domain Memory (Pull Layer)**: An [**OKF v0.2**](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) knowledge bundle (`knowledge/`) that consumes **0 tokens at baseline** and is queried on-demand in microseconds.
 
 ```mermaid
 flowchart TD
     L1["1. OKF v0.2 Specification<br/>(Normative Markdown & YAML Format)"]
-    L2["2. Agent Memory Convention<br/>(Behavioral Rules: Search, Review, Trust)"]
-    L3["3. Agent Skill<br/>(LLM Prompts & Operational Workflows)"]
-    L4["4. Tooling Layer: Go Library & CLI<br/>(Deterministic Parsing, Validation, Search, MCP)"]
+    L2["2. Agent Memory Convention & DMAA<br/>(Dual-Memory Model, Search-Before-Write, Trust)"]
+    L3["3. Agent Skill & AAG Codex<br/>(Agent Action Grammar, Workflows, Triggers)"]
+    L4["4. Tooling Layer: Go Library & CLI<br/>(Deterministic Parsing, Validation, BM25, MCP)"]
     L5["5. Project Knowledge Corpus<br/>(knowledge/ OKF Bundle)"]
 
     L1 --> L2
@@ -36,6 +74,8 @@ flowchart TD
 
 ## ⚡ Key Highlights
 
+* **Dual-Memory Cognitive Architecture (DMAA)**: Separates normative push working memory (`AGENTS.md` codex) from semantic pull domain memory (`knowledge/` bundle), completely eliminating prompt bloat.
+* **Agent Action Grammar (AAG)**: Ultra-compact, deterministic ASCII micro-syntax saving **~78–85% tokens** compared to natural language prompt instructions.
 * **Blazing Fast Performance (<300µs Search, ~4ms Graph Validation)**: In-memory BM25 retrieval and bundle validation execute in microseconds without VM spin-up or network roundtrips.
 * **100% Git-Native & Zero Vendor Lock-in**: Everything is version-controlled plain text. Inspect, audit, and review your agent's memory using standard `git diff` and `git log`. No external database required.
 * **Zero API Costs for Memory Retrieval**: Local lexical BM25 indexing eliminates recurring vector embedding API costs and network roundtrips.
@@ -207,12 +247,13 @@ make check
 * [Documentation Index](docs/README.md) — Central directory of all project documentation.
 * [Getting Started Guide](docs/guides/GETTING_STARTED.md) — Comprehensive onboarding guide for agents and humans.
 * [CLI & MCP Reference](docs/guides/CLI.md) — Complete command-line and protocol tools reference.
-* [Agent Instruction Best Practices](docs/guides/AGENT_INSTRUCTION_BEST_PRACTICES.md) — Guide to deterministic, token-efficient instruction design and Agent Action Grammar (AAG).
+* [Dual-Memory Agent Architecture RFC](docs/spec/DUAL_MEMORY_AGENT_ARCHITECTURE_RFC.md) — Cognitive 2-layer agent memory model (Push codex + Pull knowledge).
+* [Agent Action Grammar RFC](docs/spec/AGENT_ACTION_GRAMMAR_RFC.md) — Deterministic, token-efficient AAG micro-syntax specification for `AGENTS.md`.
+* [Agent Instruction Best Practices](docs/guides/AGENT_INSTRUCTION_BEST_PRACTICES.md) — Guide to deterministic instruction design and token optimization.
+* [OKF Agent Memory Convention v0.1](docs/spec/CONVENTION.md) — Behavioral rules and lifecycle specification.
 * [Contributing Guide](CONTRIBUTING.md) — Development setup, quality gates, and pull request standards.
 * [Security & Privacy Guidelines](docs/security/SECURITY.md) — Data governance, secret prevention, and PII protection rules.
 * [Multi-Agent Testing & Evaluation](docs/project/AGENT_TESTING.md) — Test scenarios, compatibility matrix, and benchmarks.
-* [OKF Agent Memory Convention v0.1](docs/spec/CONVENTION.md) — Behavioral rules and lifecycle specification.
-* [Dual-Memory Agent Architecture RFC](docs/spec/DUAL_MEMORY_AGENT_ARCHITECTURE_RFC.md) — Proposal for 2-layer agent memory (Push codex + Pull knowledge).
 * [Project Roadmap & Milestones](docs/project/ROADMAP.md) — Phased development plan.
 * [Release Playbook](docs/project/RELEASE_PLAYBOOK.md) — Versioning, CI/CD pipeline, and distribution procedures.
 * [Release Notes & History](docs/releases/README.md) — Versioned changelogs and historical release notes archive.
