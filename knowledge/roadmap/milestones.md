@@ -34,6 +34,7 @@ The project progresses through 11 structured phases designed to take OKF Agent M
 | **Phase 11**| **Release & CI/CD** | **Completed** | GitHub Actions CI/CD, cross-platform release binaries, starter pack packaging, Homebrew tap. |
 | **Phase 12**| **Governance & Code Binding** | **Completed** | 3-tier epistemic governance (`constraint`, `hold`, `context`), `code_refs` binding, `--for-path` discovery, and dogfooding parity test. |
 | **Phase 13**| **DMAA & Agent Action Grammar** | **Completed** | AAG RFC specification, AST linter (`AAG-001`–`AAG-005`), token budget gates, multi-domain templates, and SSoT tool symlinks (`okf agents link`). |
+| **Phase 14**| **Empirical Benchmarking & DMAA Validation** | **Completed** | Pure Go benchmark runner (`okf-benchmark`), Layer 1 & 2 suites, empirical validation on local/cloud models, peer methodology guide, and CLI help hardening. |
 
 ## Inter-Concept Connections
 

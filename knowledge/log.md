@@ -1,3 +1,6 @@
+## 2026-09-16
+* **Release**: Published version v0.3.1 — Dual-Memory Agent Architecture (DMAA) empirical benchmark suite (`okf-benchmark`), CLI subcommand help handlers (`okf <subcommand> --help`), pre-flight GPU warmup ping, automated Mermaid diagram sanitizer, AAG v0.1 skill refactoring, and mutation performance hardening.
+
 ## 2026-09-15
 * **Release**: Published version v0.3.0 — Agent Action Grammar (AAG) RFC & AST Linter (`AAG-001`–`AAG-005`), Dual-Memory Agent Architecture (DMAA), Multi-Domain Codex Scaffolding (`okf agents init`), SSoT Tool Symlinks (`okf agents link`), `okf validate --agents`, and Google Jules security remediation.
 * **Update**: Updated `knowledge/roadmap/milestones.md` marking Phase 13 (DMAA & Agent Action Grammar) as completed.
