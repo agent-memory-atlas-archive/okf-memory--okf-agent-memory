@@ -73,12 +73,250 @@ func main() {
 	case "version", "--version", "-v":
 		fmt.Printf("okf version %s (OKF v0.2 specification)\n", Version)
 	case "help", "--help", "-h":
+		if len(os.Args) > 2 {
+			sub := os.Args[2]
+			switch sub {
+			case "validate":
+				printValidateUsage()
+			case "search":
+				printSearchUsage()
+			case "show":
+				printShowUsage()
+			case "create":
+				printCreateUsage()
+			case "update":
+				printUpdateUsage()
+			case "relate":
+				printRelateUsage()
+			case "init":
+				printInitUsage()
+			case "bootstrap":
+				printBootstrapUsage()
+			case "agents":
+				printAgentsUsage()
+			case "mcp":
+				printMCPUsage()
+			default:
+				printUsage()
+			}
+			return
+		}
 		printUsage()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command '%s'\n\n", cmd)
 		printUsage()
 		os.Exit(1)
 	}
+}
+
+func isHelpArg(arg string) bool {
+	return arg == "--help" || arg == "-h" || arg == "help"
+}
+
+func hasHelpFlag(args []string) bool {
+	for _, a := range args {
+		if isHelpArg(a) {
+			return true
+		}
+	}
+	return false
+}
+
+func printValidateUsage() {
+	fmt.Printf(`Validate an OKF knowledge bundle and agent workspace for conformance and graph health.
+
+Usage:
+  okf validate [bundle] [flags]
+
+Arguments:
+  [bundle]               Path to OKF bundle directory or workspace root (default: 'knowledge' or '.')
+
+Flags:
+  --strict               Gate connectivity warnings, broken links, orphans, and trust gaps as errors
+  --drift                Check descriptions and code_refs for drift between index.md and concepts
+  --stale                Gate expired review dates (stale_after) as errors
+  --agents               Validate AGENTS.md against AAG rules (AAG-001 to AAG-005) and SSoT tool symlinks
+  --json                 Output validation results as structured JSON
+
+Examples:
+  okf validate knowledge --strict --drift
+  okf validate --agents --strict .
+  okf validate knowledge --json
+`)
+}
+
+func printSearchUsage() {
+	fmt.Printf(`Search concepts using in-memory BM25 scoring or filter by code path.
+
+Usage:
+  okf search <query> [bundle] [flags]
+  okf search --for-path <path> [bundle] [flags]
+
+Arguments:
+  <query>                Search terms to match against concept titles, descriptions, and bodies
+  [bundle]               Path to OKF bundle directory (default: 'knowledge' or '.')
+
+Flags:
+  --for-path <path>      Discover concepts governing a specific file path via code_refs
+  --limit <N>            Maximum number of search results to return (default: 10)
+  --json                 Output results as machine-readable JSON array with BM25 scores
+
+Examples:
+  okf search "authentication jwt" knowledge --limit 3
+  okf search --for-path pkg/auth/service.go knowledge --json
+  okf search "database connection" --limit 5
+`)
+}
+
+func printShowUsage() {
+	fmt.Printf(`Display concept details, metadata, relationships, and body content.
+
+Usage:
+  okf show <concept-id> [bundle] [flags]
+
+Arguments:
+  <concept-id>           Unique concept identifier (e.g. 'architecture/database' or 'decisions/adr-001')
+  [bundle]               Path to OKF bundle directory (default: 'knowledge' or '.')
+
+Flags:
+  --raw                  Output verbatim raw markdown file content
+  --json                 Output parsed concept metadata and body as JSON
+
+Examples:
+  okf show architecture/database knowledge
+  okf show decisions/adr-001 --raw
+  okf show architecture/auth --json
+`)
+}
+
+func printCreateUsage() {
+	fmt.Printf(`Create a new concept with automated frontmatter, timestamps, and log bookkeeping.
+
+Usage:
+  okf create <concept-id> [bundle] [flags]
+
+Arguments:
+  <concept-id>           Unique identifier for the concept (e.g. 'decisions/adr-001' or 'architecture/caching')
+  [bundle]               Path to OKF bundle directory (default: 'knowledge' or '.')
+
+Flags:
+  --type <type>          Semantic concept type (e.g. 'Decision', 'Architecture', 'Fact', 'Requirement', 'Bug') [default: Fact]
+  --title <title>        Human-readable title (defaults to concept basename)
+  --desc <desc>          One-sentence summary of the concept
+  --body <body>          Markdown body content
+  --tags <tags>          Comma-separated list of searchable tags (e.g. 'auth,security,jwt')
+  --actor <actor>        Author provenance identifier (default: 'agent/cli')
+  --no-log               Skip appending an entry to knowledge/log.md
+  --no-index             Skip updating immediate parent directory index.md
+  --json                 Emit machine-readable JSON result
+
+Examples:
+  okf create decisions/adr-001 knowledge --type Decision --title "Database Architecture" --desc "Use PostgreSQL with connection pooling."
+  okf create architecture/caching --type Architecture --desc "Redis cluster configuration." --json
+`)
+}
+
+func printUpdateUsage() {
+	fmt.Printf(`Update an existing concept's metadata, description, or body with automated bookkeeping.
+
+Usage:
+  okf update <concept-id> [bundle] [flags]
+
+Arguments:
+  <concept-id>           Unique identifier of existing concept to mutate
+  [bundle]               Path to OKF bundle directory (default: 'knowledge' or '.')
+
+Flags:
+  --desc <desc>          Update the one-sentence description
+  --title <title>        Update the title
+  --body <body>          Update the markdown body content
+  --type <type>          Update the concept type
+  --status <status>      Set concept status (e.g. 'active', 'deprecated', 'draft')
+  --tags <tags>          Replace tags with comma-separated list
+  --actor <actor>        Author provenance identifier (default: 'agent/cli')
+  --no-log               Skip appending to knowledge/log.md
+  --no-index             Skip updating parent directory index.md
+  --json                 Emit machine-readable JSON result
+
+Examples:
+  okf update architecture/database knowledge --desc "Migrated from SQLite to PostgreSQL 16 on RDS."
+  okf update decisions/adr-001 --status deprecated --desc "Superseded by adr-008." --json
+`)
+}
+
+func printRelateUsage() {
+	fmt.Printf(`Connect two concepts with a relative link and semantic context.
+
+Usage:
+  okf relate <source-id> <target-id> [bundle] --desc <context> [flags]
+
+Arguments:
+  <source-id>            Source concept identifier
+  <target-id>            Target concept identifier to link to
+  [bundle]               Path to OKF bundle directory (default: 'knowledge' or '.')
+
+Flags:
+  --desc <prose>         Semantic description of the relationship (required)
+  --actor <actor>        Author provenance identifier (default: 'agent/cli')
+  --no-log               Skip appending to knowledge/log.md
+  --json                 Emit machine-readable JSON result
+
+Examples:
+  okf relate decisions/adr-008 architecture/database knowledge --desc "implements connection pooling strategy"
+`)
+}
+
+func printInitUsage() {
+	fmt.Printf(`Initialize a new OKF v0.2 bundle with root index.md and log.md.
+
+Usage:
+  okf init [path]
+
+Arguments:
+  [path]                 Target directory to initialize (default: 'knowledge' or '.')
+
+Examples:
+  okf init knowledge
+  okf init .
+`)
+}
+
+func printBootstrapUsage() {
+	fmt.Printf(`Scaffold a complete OKF Agent Memory stack in a project repository.
+
+Usage:
+  okf bootstrap [target-dir] [flags]
+
+Arguments:
+  [target-dir]           Target repository root directory (default: '.')
+
+Flags:
+  --name <name>          Project name (defaults to target directory name)
+  --no-skill             Skip installing .agents/skills/okf-memory/
+  --no-agents-md         Skip installing canonical AGENTS.md
+  --overwrite-agents-md  Overwrite existing AGENTS.md instead of smart append
+  --no-makefile          Skip installing Makefile
+  --no-bundle            Skip installing knowledge/ scaffold (index.md, log.md)
+
+Examples:
+  okf bootstrap .
+  okf bootstrap /path/to/project --name "My Project"
+`)
+}
+
+func printMCPUsage() {
+	fmt.Printf(`Run OKF Agent Memory as a Model Context Protocol (MCP) server over stdio.
+
+Usage:
+  okf mcp [bundle]
+
+Arguments:
+  [bundle]               Path to OKF bundle directory (default: 'knowledge' or '.')
+
+Examples:
+  okf mcp knowledge
+  okf mcp .
+`)
 }
 
 func printUsage() {
@@ -131,6 +369,10 @@ func splitOptionalPath(args []string, fallback string) (string, []string) {
 }
 
 func cmdValidate(args []string) {
+	if hasHelpFlag(args) {
+		printValidateUsage()
+		return
+	}
 	fs := flag.NewFlagSet("validate", flag.ExitOnError)
 	strict := fs.Bool("strict", false, "Fail on broken links, orphans, and provenance gaps")
 	drift := fs.Bool("drift", false, "Check for drift between index.md and concept descriptions")
@@ -233,6 +475,10 @@ func cmdValidate(args []string) {
 }
 
 func cmdSearch(args []string) {
+	if hasHelpFlag(args) {
+		printSearchUsage()
+		return
+	}
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 	limit := fs.Int("limit", 10, "Maximum number of search results")
 	forPath := fs.String("for-path", "", "Filter concepts governing a specific file path via code_refs")
@@ -337,9 +583,12 @@ func cmdSearch(args []string) {
 }
 
 func cmdShow(args []string) {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Usage: okf show <concept-id> [bundle] [--json] [--raw]")
-		os.Exit(1)
+	if len(args) == 0 || hasHelpFlag(args) {
+		printShowUsage()
+		if len(args) == 0 {
+			os.Exit(1)
+		}
+		return
 	}
 
 	rawID := strings.TrimSpace(args[0])
@@ -404,9 +653,12 @@ func cmdShow(args []string) {
 }
 
 func cmdCreate(args []string) {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Usage: okf create <concept-id> [bundle] --type <type> --title <title> --desc <desc>")
-		os.Exit(1)
+	if len(args) == 0 || hasHelpFlag(args) {
+		printCreateUsage()
+		if len(args) == 0 {
+			os.Exit(1)
+		}
+		return
 	}
 
 	rawID := strings.TrimSpace(args[0])
@@ -479,9 +731,12 @@ func cmdCreate(args []string) {
 }
 
 func cmdUpdate(args []string) {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Usage: okf update <concept-id> [bundle] [--title <title>] [--desc <desc>] [--body <body>]")
-		os.Exit(1)
+	if len(args) == 0 || hasHelpFlag(args) {
+		printUpdateUsage()
+		if len(args) == 0 {
+			os.Exit(1)
+		}
+		return
 	}
 
 	rawID := strings.TrimSpace(args[0])
@@ -559,9 +814,12 @@ func cmdUpdate(args []string) {
 }
 
 func cmdRelate(args []string) {
-	if len(args) < 2 {
-		fmt.Fprintln(os.Stderr, "Usage: okf relate <source-concept-id> <target-concept-id> [bundle] [--desc <context>] [--actor <actor>] [--json]")
-		os.Exit(1)
+	if len(args) < 2 || hasHelpFlag(args) {
+		printRelateUsage()
+		if len(args) < 2 {
+			os.Exit(1)
+		}
+		return
 	}
 
 	sourceID := args[0]
@@ -599,6 +857,10 @@ func cmdRelate(args []string) {
 }
 
 func cmdInit(args []string) {
+	if hasHelpFlag(args) {
+		printInitUsage()
+		return
+	}
 	bundleDir, _ := defaultBundle(args)
 	if err := okf.InitBundle(bundleDir); err != nil {
 		fmt.Fprintf(os.Stderr, "Error initializing bundle: %v\n", err)
@@ -608,6 +870,10 @@ func cmdInit(args []string) {
 }
 
 func cmdBootstrap(args []string) {
+	if hasHelpFlag(args) {
+		printBootstrapUsage()
+		return
+	}
 	targetDir, subArgs := splitOptionalPath(args, ".")
 
 	fs := flag.NewFlagSet("bootstrap", flag.ExitOnError)
@@ -651,6 +917,10 @@ func cmdBootstrap(args []string) {
 }
 
 func cmdMCP(args []string) {
+	if hasHelpFlag(args) {
+		printMCPUsage()
+		return
+	}
 	bundleDir, _ := defaultBundle(args)
 	if err := RunMCPServer(bundleDir); err != nil {
 		fmt.Fprintf(os.Stderr, "MCP server error: %v\n", err)
