@@ -1,9 +1,9 @@
 ---
 type: Decision
 title: Zero-Knowledge Vault Cryptography and Blind Sync Architecture
-description: "Client-side zero-knowledge AES-256-GCM envelope encryption, Argon2id KDF, CAS blind storage, and 3-way reconcile sync protocol."
+description: "Client-side zero-knowledge AES-256-GCM envelope encryption, Argon2id KDF, CAS blind storage, 3-way reconcile sync protocol, and Bearer auth."
 tags: [vault, crypto, zero-knowledge, sync, cas, reconcile]
-generated: { by: agent/mcp, at: "2026-09-14T13:32:35Z" }
+generated: { by: agent/gemini, at: "2026-09-17T13:07:28Z" }
 governance: constraint
 code_refs: [pkg/vault, pkg/sync, cmd/okf/hub.go]
 ---
@@ -67,10 +67,23 @@ When a `409 Conflict` occurs during synchronization:
 
 ---
 
+## 5. Hub Authentication & Configuration Governance
+
+All remote hub communication supports Bearer token authentication to restrict vault creation and synchronization on private instances:
+
+1. **Token Resolution Precedence**:
+   * CLI Flag: `-auth-token <token>` (overrides all defaults)
+   * Environment Variable: `OKF_HUB_TOKEN` (recommended for CI/CD and agent daemons)
+   * Vault Config: `auth_token` in `.okf-vault.json` (convenience for interactive workstations)
+2. **Remote URL Auto-Resolution**:
+   * CLI Flag: `-hub <url>`
+   * Vault Config: `hub_url` in `.okf-vault.json`
+   * Fallback Default: `http://127.0.0.1:8080`
+3. **Subcommand Set**: `okf hub init-vault`, `push`, `pull`, `sync`, and embedded `serve`.
+
+---
+
 ## Related Concepts
 
 - [5-Layer System Architecture](layers.md): Layered separation of concerns
 - [Bundle Isolation and Mutation Security Boundaries](security-boundaries.md): Defensive containment and path traversal protection
-
-# Related Concepts
-- [5-Layer System Architecture](layers.md): Zero-knowledge sync extends the tooling and storage layers with client-side cryptography.

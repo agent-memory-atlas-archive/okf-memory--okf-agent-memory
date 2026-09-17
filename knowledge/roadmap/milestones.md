@@ -1,21 +1,21 @@
 ---
 type: Roadmap
-title: Project Roadmap & Development Milestones
-description: Phased implementation roadmap from specification validation to Go library, CLI tooling, and cross-agent testing.
-resource: https://github.com/okf-memory/okf-agent-memory
+title: "Project Roadmap & Development Milestones"
+description: "Phased implementation roadmap from specification validation to Go library, CLI tooling, cross-agent testing, and zero-knowledge hub sync."
+resource: "https://github.com/okf-memory/okf-agent-memory"
 tags: [roadmap, milestones, phases, planning]
-generated: { by: agent/gemini-3.7-flash, at: 2026-08-27T11:24:00Z }
+generated: { by: agent/gemini, at: "2026-09-17T13:07:33Z" }
 status: stable
 sources:
-  - id: roadmap
-    resource: ../../docs/project/ROADMAP.md
+  - resource: ../../docs/project/ROADMAP.md
+    id: roadmap
     title: OKF Agent Memory Project Roadmap
     last_modified: 2026-08-27
 ---
 
 # Project Roadmap & Development Milestones
 
-The project progresses through 11 structured phases designed to take OKF Agent Memory from draft convention to a production-ready standard.[^roadmap]
+The project progresses through 15 structured phases designed to take OKF Agent Memory from draft convention to a production-ready standard.[^roadmap]
 
 ## Implementation Phases
 
@@ -35,6 +35,7 @@ The project progresses through 11 structured phases designed to take OKF Agent M
 | **Phase 12**| **Governance & Code Binding** | **Completed** | 3-tier epistemic governance (`constraint`, `hold`, `context`), `code_refs` binding, `--for-path` discovery, and dogfooding parity test. |
 | **Phase 13**| **DMAA & Agent Action Grammar** | **Completed** | AAG RFC specification, AST linter (`AAG-001`–`AAG-005`), token budget gates, multi-domain templates, and SSoT tool symlinks (`okf agents link`). |
 | **Phase 14**| **Empirical Benchmarking & DMAA Validation** | **Completed** | Pure Go benchmark runner (`okf-benchmark`), Layer 1 & 2 suites, empirical validation on local/cloud models, peer methodology guide, and CLI help hardening. |
+| **Phase 15**| **Zero-Knowledge Vault Sync & Memory Hub** | **Completed** | Client-side AES-256-GCM envelope crypto, Argon2id KDF, blind CAS protocol, atomic head concurrency control, 3-way reconcile engine, and CLI hub commands with Bearer auth. |
 
 ## Inter-Concept Connections
 
