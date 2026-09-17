@@ -1,15 +1,15 @@
 ---
 type: Convention
 title: "Engineering & Coding Best Practices (Clean Code, TDD, DRY)"
-description: "Core software engineering conventions for agents and humans covering Clean Code, TDD, DRY, idiomatic Go, and zero-dependency design."
-generated: { by: agent/mcp, at: "2026-09-08T10:52:57Z" }
+description: "Core software engineering conventions covering Clean Code, TDD, DRY, idiomatic Go, and zero third-party dependency design."
+generated: { by: agent/mcp, at: "2026-09-17T08:06:02Z" }
 ---
 
 # Engineering & Coding Best Practices (Clean Code, TDD, DRY)
 
 ## Context & Purpose
 
-This convention establishes the core software engineering standards and behavioral coding guarantees for AI agents and human engineers developing the `okf-agent-memory` codebase. Adherence ensures zero-dependency simplicity, predictable performance, and high defensive resilience across platforms.
+This convention establishes the core software engineering standards and behavioral coding guarantees for AI agents and human engineers developing the `okf-agent-memory` codebase. Adherence ensures zero third-party dependency simplicity, predictable performance, and high defensive resilience across platforms.
 
 ---
 
@@ -47,9 +47,10 @@ Code must adhere to modern idiomatic Go (Go 1.24+ / Go 1.26):
 * **Self-Documenting Naming**:
   - Use clear, descriptive names for functions, types, and variables.
   - Follow Go receiver conventions (e.g. `b *Bundle`, `c *Concept`, `s *mcpServer`).
-* **Zero External Dependencies**:
-  - The Go library and CLI rely **100% on the Go standard library** (`os`, `io`, `path`, `filepath`, `strings`, `slices`, `time`, `encoding/json`).
-  - Never introduce external packages or third-party frameworks.
+* **Zero Third-Party Dependencies**:
+  - The core Go library (`pkg/okf`) relies **100% on the Go standard library** (`os`, `io`, `path`, `filepath`, `strings`, `slices`, `time`, `encoding/json`).
+  - For zero-knowledge cryptographic primitives (`pkg/vault`), only official Go project sub-repositories (`golang.org/x/crypto`) are permitted for Argon2id key derivation.
+  - Never introduce external third-party packages, vendor libraries, or third-party frameworks.
 
 ---
 

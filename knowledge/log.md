@@ -1,3 +1,7 @@
+## 2026-09-17
+* **Update**: Updated concept `convention/coding-standards.md`.
+* **Update**: Updated concept `convention/contributing.md`.
+
 ## 2026-09-15
 * **Release**: Published version v0.3.0 — Agent Action Grammar (AAG) RFC & AST Linter (`AAG-001`–`AAG-005`), Dual-Memory Agent Architecture (DMAA), Multi-Domain Codex Scaffolding (`okf agents init`), SSoT Tool Symlinks (`okf agents link`), `okf validate --agents`, and Google Jules security remediation.
 * **Update**: Updated `knowledge/roadmap/milestones.md` marking Phase 13 (DMAA & Agent Action Grammar) as completed.
