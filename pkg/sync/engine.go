@@ -32,6 +32,9 @@ type SyncResult struct {
 	Conflicts  []Conflict
 }
 
+// DefaultMaxSyncRetries is the maximum number of times Sync will retry on concurrent head conflicts (HTTP 409).
+const DefaultMaxSyncRetries = 5
+
 // Engine coordinates bundle scanning, client-side encryption/decryption,
 // and sync operations with the remote OKF Memory Hub.
 type Engine struct {
@@ -315,144 +318,205 @@ func (e *Engine) Sync(ctx context.Context, author vault.CommitAuthor, message st
 		return nil, err
 	}
 
-	// 409 Conflict encountered: Fetch remote state
-	remoteCommitBlob, err := e.Client.GetBlob(ctx, e.VaultID, conflictErr.CurrentHead)
-	if err != nil {
-		return nil, fmt.Errorf("sync: failed to fetch remote conflict head %s: %w", conflictErr.CurrentHead, err)
-	}
+	remoteHead := conflictErr.CurrentHead
 
-	remoteCommitBytes, err := vault.DecryptPayload(remoteCommitBlob, e.VaultKey)
-	if err != nil {
-		return nil, fmt.Errorf("sync: failed to decrypt remote commit: %w", err)
-	}
+	for attempt := 0; attempt < DefaultMaxSyncRetries; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(10*(1<<attempt)) * time.Millisecond
+			select {
+			case <-time.After(backoff):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
 
-	remoteCommit, err := vault.ParseCommit(remoteCommitBytes)
-	if err != nil {
-		return nil, fmt.Errorf("sync: failed to parse remote commit: %w", err)
-	}
+		// 409 Conflict encountered: Fetch remote state
+		remoteCommitBlob, err := e.Client.GetBlob(ctx, e.VaultID, remoteHead)
+		if err != nil {
+			return nil, fmt.Errorf("sync: failed to fetch remote conflict head %s: %w", remoteHead, err)
+		}
 
-	remoteTreeBlob, err := e.Client.GetBlob(ctx, e.VaultID, remoteCommit.TreeHash)
-	if err != nil {
-		return nil, fmt.Errorf("sync: failed to fetch remote tree: %w", err)
-	}
+		remoteCommitBytes, err := vault.DecryptPayload(remoteCommitBlob, e.VaultKey)
+		if err != nil {
+			return nil, fmt.Errorf("sync: failed to decrypt remote commit: %w", err)
+		}
 
-	remoteTreeBytes, err := vault.DecryptPayload(remoteTreeBlob, e.VaultKey)
-	if err != nil {
-		return nil, fmt.Errorf("sync: failed to decrypt remote tree: %w", err)
-	}
+		remoteCommit, err := vault.ParseCommit(remoteCommitBytes)
+		if err != nil {
+			return nil, fmt.Errorf("sync: failed to parse remote commit: %w", err)
+		}
 
-	remoteTree, err := vault.ParseTree(remoteTreeBytes)
-	if err != nil {
-		return nil, fmt.Errorf("sync: failed to parse remote tree: %w", err)
-	}
+		remoteTreeBlob, err := e.Client.GetBlob(ctx, e.VaultID, remoteCommit.TreeHash)
+		if err != nil {
+			return nil, fmt.Errorf("sync: failed to fetch remote tree: %w", err)
+		}
 
-	// Construct current local tree from files on disk
-	localFiles, err := e.ScanBundle()
-	if err != nil {
-		return nil, err
-	}
+		remoteTreeBytes, err := vault.DecryptPayload(remoteTreeBlob, e.VaultKey)
+		if err != nil {
+			return nil, fmt.Errorf("sync: failed to decrypt remote tree: %w", err)
+		}
 
-	localTree := vault.NewTree()
-	blobsToUpload := make(map[string][]byte)
-	var candidateHashes []string
+		remoteTree, err := vault.ParseTree(remoteTreeBytes)
+		if err != nil {
+			return nil, fmt.Errorf("sync: failed to parse remote tree: %w", err)
+		}
 
-	for path, content := range localFiles {
-		plainHash := vault.HashPlaintext(content)
-		envelopeBytes, err := vault.EncryptPayload(content, e.VaultKey)
+		// Construct current local tree from files on disk
+		localFiles, err := e.ScanBundle()
 		if err != nil {
 			return nil, err
 		}
-		blobHash := vault.HashBlob(envelopeBytes)
-		blobsToUpload[blobHash] = envelopeBytes
-		candidateHashes = append(candidateHashes, blobHash)
 
-		localTree.Entries[path] = vault.TreeEntry{
-			BlobHash:      blobHash,
-			Size:          int64(len(content)),
-			PlaintextHash: plainHash,
-			ModifiedAt:    time.Now().UTC().Format(time.RFC3339),
-		}
-	}
+		localTree := vault.NewTree()
+		blobsToUpload := make(map[string][]byte)
+		var candidateHashes []string
 
-	// Reconcile base, local, and remote
-	reconcileRes, err := Reconcile(e.cachedTree, localTree, remoteTree)
-	if err != nil {
-		return nil, fmt.Errorf("sync: reconciliation failed: %w", err)
-	}
-
-	if len(reconcileRes.Conflicts) > 0 {
-		ApplyConflictFailsafe(reconcileRes.MergedTree, reconcileRes.Conflicts)
-	}
-
-	// Update local files with remote changes and conflict files
-	diff := vault.DiffTrees(localTree, reconcileRes.MergedTree)
-	toFetch := append(diff.Added, diff.Modified...)
-	for _, path := range toFetch {
-		entry := reconcileRes.MergedTree.Entries[path]
-		var plainBytes []byte
-		if localData, ok := localFiles[path]; ok && vault.HashPlaintext(localData) == entry.PlaintextHash {
-			plainBytes = localData
-		} else if envelopeData, ok := blobsToUpload[entry.BlobHash]; ok {
-			var err error
-			plainBytes, err = vault.DecryptPayload(envelopeData, e.VaultKey)
+		for path, content := range localFiles {
+			plainHash := vault.HashPlaintext(content)
+			envelopeBytes, err := vault.EncryptPayload(content, e.VaultKey)
 			if err != nil {
-				return nil, fmt.Errorf("sync: failed to decrypt local blob for %s: %w", path, err)
+				return nil, err
 			}
-		} else {
-			blobBytes, err := e.Client.GetBlob(ctx, e.VaultID, entry.BlobHash)
-			if err != nil {
-				return nil, fmt.Errorf("sync: failed to fetch blob %s for %s: %w", entry.BlobHash, path, err)
-			}
-			plainBytes, err = vault.DecryptPayload(blobBytes, e.VaultKey)
-			if err != nil {
-				return nil, fmt.Errorf("sync: failed to decrypt %s: %w", path, err)
+			blobHash := vault.HashBlob(envelopeBytes)
+			blobsToUpload[blobHash] = envelopeBytes
+			candidateHashes = append(candidateHashes, blobHash)
+
+			localTree.Entries[path] = vault.TreeEntry{
+				BlobHash:      blobHash,
+				Size:          int64(len(content)),
+				PlaintextHash: plainHash,
+				ModifiedAt:    time.Now().UTC().Format(time.RFC3339),
 			}
 		}
 
-		fullPath := filepath.Join(e.BundlePath, filepath.FromSlash(path))
-		_ = os.MkdirAll(filepath.Dir(fullPath), 0o755)
-		_ = os.WriteFile(fullPath, plainBytes, 0o644)
-	}
+		// Reconcile base, local, and remote
+		reconcileRes, err := Reconcile(e.cachedTree, localTree, remoteTree)
+		if err != nil {
+			return nil, fmt.Errorf("sync: reconciliation failed: %w", err)
+		}
 
-	for _, path := range diff.Deleted {
-		_ = os.Remove(filepath.Join(e.BundlePath, filepath.FromSlash(path)))
-	}
+		// Auto-merge append-only log files (e.g. log.md)
+		var unresolvedConflicts []Conflict
+		for _, c := range reconcileRes.Conflicts {
+			if isLogFile(c.Path) && c.LocalEntry.BlobHash != "" && c.RemoteEntry.BlobHash != "" {
+				remoteLogBlob, err := e.Client.GetBlob(ctx, e.VaultID, c.RemoteEntry.BlobHash)
+				if err == nil {
+					remoteLogPlain, err := vault.DecryptPayload(remoteLogBlob, e.VaultKey)
+					if err == nil {
+						localLogPlain := localFiles[c.Path]
+						mergedLogPlain, err := MergeLogContent(localLogPlain, remoteLogPlain)
+						if err == nil {
+							mergedEnv, err := vault.EncryptPayload(mergedLogPlain, e.VaultKey)
+							if err == nil {
+								mergedBlobHash := vault.HashBlob(mergedEnv)
+								blobsToUpload[mergedBlobHash] = mergedEnv
+								candidateHashes = append(candidateHashes, mergedBlobHash)
+								localFiles[c.Path] = mergedLogPlain
 
-	// Upload new blobs
-	if len(candidateHashes) > 0 {
-		missing, err := e.Client.CheckMissingBlobs(ctx, e.VaultID, candidateHashes)
-		if err == nil {
-			for _, h := range missing {
-				if d, ok := blobsToUpload[h]; ok {
-					_ = e.Client.PutBlob(ctx, e.VaultID, h, d)
+								reconcileRes.MergedTree.Entries[c.Path] = vault.TreeEntry{
+									BlobHash:      mergedBlobHash,
+									Size:          int64(len(mergedLogPlain)),
+									PlaintextHash: vault.HashPlaintext(mergedLogPlain),
+									ModifiedAt:    time.Now().UTC().Format(time.RFC3339),
+								}
+								continue
+							}
+						}
+					}
+				}
+			}
+			unresolvedConflicts = append(unresolvedConflicts, c)
+		}
+		reconcileRes.Conflicts = unresolvedConflicts
+
+		if len(reconcileRes.Conflicts) > 0 {
+			ApplyConflictFailsafe(reconcileRes.MergedTree, reconcileRes.Conflicts)
+		}
+
+		// Update local files with remote changes and conflict files
+		diff := vault.DiffTrees(localTree, reconcileRes.MergedTree)
+		toFetch := append(diff.Added, diff.Modified...)
+		for _, path := range toFetch {
+			entry := reconcileRes.MergedTree.Entries[path]
+			var plainBytes []byte
+			if localData, ok := localFiles[path]; ok && vault.HashPlaintext(localData) == entry.PlaintextHash {
+				plainBytes = localData
+			} else if envelopeData, ok := blobsToUpload[entry.BlobHash]; ok {
+				var err error
+				plainBytes, err = vault.DecryptPayload(envelopeData, e.VaultKey)
+				if err != nil {
+					return nil, fmt.Errorf("sync: failed to decrypt local blob for %s: %w", path, err)
+				}
+			} else {
+				blobBytes, err := e.Client.GetBlob(ctx, e.VaultID, entry.BlobHash)
+				if err != nil {
+					return nil, fmt.Errorf("sync: failed to fetch blob %s for %s: %w", entry.BlobHash, path, err)
+				}
+				plainBytes, err = vault.DecryptPayload(blobBytes, e.VaultKey)
+				if err != nil {
+					return nil, fmt.Errorf("sync: failed to decrypt %s: %w", path, err)
+				}
+			}
+
+			fullPath := filepath.Join(e.BundlePath, filepath.FromSlash(path))
+			_ = os.MkdirAll(filepath.Dir(fullPath), 0o755)
+			_ = os.WriteFile(fullPath, plainBytes, 0o644)
+		}
+
+		for _, path := range diff.Deleted {
+			_ = os.Remove(filepath.Join(e.BundlePath, filepath.FromSlash(path)))
+		}
+
+		// Upload new blobs
+		if len(candidateHashes) > 0 {
+			missing, err := e.Client.CheckMissingBlobs(ctx, e.VaultID, candidateHashes)
+			if err == nil {
+				for _, h := range missing {
+					if d, ok := blobsToUpload[h]; ok {
+						_ = e.Client.PutBlob(ctx, e.VaultID, h, d)
+					}
 				}
 			}
 		}
+
+		// Upload merged tree
+		mergedTreeBytes, _ := reconcileRes.MergedTree.Serialize()
+		mergedTreeEnv, _ := vault.EncryptPayload(mergedTreeBytes, e.VaultKey)
+		mergedTreeHash := vault.HashBlob(mergedTreeEnv)
+		_ = e.Client.PutBlob(ctx, e.VaultID, mergedTreeHash, mergedTreeEnv)
+
+		// Create merge commit pointing to remoteHead
+		mergeCommit := vault.NewCommit(&remoteHead, mergedTreeHash, author, "Reconcile merge: "+message)
+		mergeCommitBytes, _ := mergeCommit.Serialize()
+		mergeCommitEnv, _ := vault.EncryptPayload(mergeCommitBytes, e.VaultKey)
+		mergeCommitHash := vault.HashBlob(mergeCommitEnv)
+		_ = e.Client.PutBlob(ctx, e.VaultID, mergeCommitHash, mergeCommitEnv)
+
+		resp, err := e.Client.Commit(ctx, e.VaultID, mergeCommitHash, &remoteHead)
+		if err != nil {
+			var raceErr *HeadConflictError
+			if errors.As(err, &raceErr) {
+				// Server head advanced during reconciliation, retry with new head
+				remoteHead = raceErr.CurrentHead
+				e.cachedTree = remoteTree
+				continue
+			}
+			return nil, fmt.Errorf("sync: failed to commit merged head: %w", err)
+		}
+
+		e.cachedHead = resp.Head
+		e.cachedTree = reconcileRes.MergedTree
+
+		return &SyncResult{
+			CommitHash: resp.Head,
+			Conflicts:  reconcileRes.Conflicts,
+		}, nil
 	}
 
-	// Upload merged tree
-	mergedTreeBytes, _ := reconcileRes.MergedTree.Serialize()
-	mergedTreeEnv, _ := vault.EncryptPayload(mergedTreeBytes, e.VaultKey)
-	mergedTreeHash := vault.HashBlob(mergedTreeEnv)
-	_ = e.Client.PutBlob(ctx, e.VaultID, mergedTreeHash, mergedTreeEnv)
+	return nil, fmt.Errorf("sync: exceeded maximum reconciliation retries (%d)", DefaultMaxSyncRetries)
+}
 
-	// Create merge commit pointing to remoteHead
-	mergeCommit := vault.NewCommit(&conflictErr.CurrentHead, mergedTreeHash, author, "Reconcile merge: "+message)
-	mergeCommitBytes, _ := mergeCommit.Serialize()
-	mergeCommitEnv, _ := vault.EncryptPayload(mergeCommitBytes, e.VaultKey)
-	mergeCommitHash := vault.HashBlob(mergeCommitEnv)
-	_ = e.Client.PutBlob(ctx, e.VaultID, mergeCommitHash, mergeCommitEnv)
-
-	resp, err := e.Client.Commit(ctx, e.VaultID, mergeCommitHash, &conflictErr.CurrentHead)
-	if err != nil {
-		return nil, fmt.Errorf("sync: failed to commit merged head: %w", err)
-	}
-
-	e.cachedHead = resp.Head
-	e.cachedTree = reconcileRes.MergedTree
-
-	return &SyncResult{
-		CommitHash: resp.Head,
-		Conflicts:  reconcileRes.Conflicts,
-	}, nil
+func isLogFile(path string) bool {
+	clean := filepath.ToSlash(filepath.Clean(path))
+	return clean == "log.md" || strings.HasSuffix(clean, "/log.md")
 }
