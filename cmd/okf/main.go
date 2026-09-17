@@ -70,6 +70,8 @@ func main() {
 		cmdAgents(args)
 	case "mcp":
 		cmdMCP(args)
+	case "hub":
+		cmdHub(args)
 	case "version", "--version", "-v":
 		fmt.Printf("okf version %s (OKF v0.2 specification)\n", Version)
 	case "help", "--help", "-h":
@@ -336,6 +338,7 @@ Commands:
   bootstrap [target-dir] Scaffold complete memory stack (skill, AGENTS.md, knowledge, Makefile)
   agents <subcommand>    Manage AGENTS.md, lint AAG rules, and maintain SSoT tool symlinks
   mcp [bundle]           Run as a Model Context Protocol (MCP) server over stdio
+  hub <subcommand>       Zero-knowledge sync and vault management (push, pull, sync, serve)
   version                Print version information
   help                   Show this help message
 

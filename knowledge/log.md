@@ -1,3 +1,7 @@
+## 2026-09-17
+* **Update**: Updated concept `convention/coding-standards.md`.
+* **Update**: Updated concept `convention/contributing.md`.
+
 ## 2026-09-16
 * **Release**: Published version v0.3.1 — Dual-Memory Agent Architecture (DMAA) empirical benchmark suite (`okf-benchmark`), CLI subcommand help handlers (`okf <subcommand> --help`), pre-flight GPU warmup ping, automated Mermaid diagram sanitizer, AAG v0.1 skill refactoring, and mutation performance hardening.
 
@@ -8,6 +12,10 @@
 * **Update**: Linked `convention/dual-memory-architecture.md` to `convention/principles.md` (Specializes behavioral invariants into two cognitive memory layers).
 * **Creation**: Documented concept `convention/dual-memory-architecture.md` (Dual-Memory Agent Architecture & Agent Action Grammar).
 * **Documentation**: Reorganized `docs/` hierarchy into categorized subdirectories (`guides/`, `spec/`, `security/`, `project/`, `releases/`) and created central `docs/README.md` index. Added `docs/spec/DUAL_MEMORY_AGENT_ARCHITECTURE_RFC.md`, `docs/spec/AGENT_ACTION_GRAMMAR_RFC.md`, `docs/guides/AGENT_INSTRUCTION_BEST_PRACTICES.md`, and `docs/guides/LLM_INSTRUCTION_PATTERNS_CHEATSHEET.md`.
+
+## 2026-09-14
+* **Update**: Linked `architecture/zero-knowledge-vault-sync.md` to `architecture/layers.md` (Zero-knowledge sync extends the tooling and storage layers with client-side cryptography.).
+* **Creation**: Documented concept `architecture/zero-knowledge-vault-sync.md` (Zero-Knowledge Vault Cryptography and Blind Sync Architecture).
 
 ## 2026-09-12
 * **Release**: Published version v0.2.0 — Epistemic Governance & Code-to-Knowledge Binding Release.

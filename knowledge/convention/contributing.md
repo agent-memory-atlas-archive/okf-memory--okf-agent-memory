@@ -1,13 +1,13 @@
 ---
 type: Convention
-title: Contributor Guidelines & PR Standards
-description: Engineering standards, zero-dependency policy, validation rules, and PR workflow for contributors.
+title: "Contributor Guidelines & PR Standards"
+description: "Engineering standards, zero third-party dependency policy, validation rules, and PR workflow for contributors."
 tags: [contributing, contribute, workflow, standards, pr, pull-request]
-generated: { by: agent/gemini-3.8-flash, at: 2026-09-11T16:11:00Z }
+generated: { by: agent/mcp, at: "2026-09-17T08:05:57Z" }
 status: stable
 sources:
-  - id: contributing-guide
-    resource: ../../CONTRIBUTING.md
+  - resource: ../../CONTRIBUTING.md
+    id: contributing-guide
     title: OKF Agent Memory Contributing Guide
     last_modified: 2026-09-11
 ---
@@ -25,9 +25,10 @@ All contributions must adhere to four foundational constraints:
 1. **Issue-First Contribution Policy**:
    - All non-trivial PRs must be preceded by an approved GitHub Issue to ensure architectural alignment and protect maintainer bandwidth.
    - Unsolicited Pull Requests and automated agent/bot sweeps with blank or unedited templates are closed without review.
-2. **Zero External Dependencies**:
-   - The Go library (`pkg/okf`) and CLI (`cmd/okf`) must rely exclusively on the Go standard library.
-   - External dependencies (e.g. third-party YAML parsers or search engines) are strictly forbidden to ensure instant compilation, zero supply-chain risk, and painless cross-platform compilation.
+2. **Zero Third-Party Dependencies**:
+   - The core Go library (`pkg/okf`) relies exclusively on the Go standard library.
+   - For zero-knowledge cryptographic primitives (`pkg/vault`), only official Go project sub-repositories (`golang.org/x/crypto`) are permitted for Argon2id key derivation.
+   - Third-party packages, external vendor libraries, and CGo dependencies are strictly forbidden to ensure zero supply-chain risk, instant compilation, and reliable cross-platform compilation.
 3. **OKF v0.2 Specification Conformance**:
    - The project's own `knowledge/` bundle and all bundles scaffolded by `okf bootstrap` or `okf init` must strictly conform to the Open Knowledge Format v0.2 specification.
 4. **Walk the Talk (Persistent Knowledge Maintenance)**:

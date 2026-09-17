@@ -146,6 +146,13 @@ This generates the standalone binary at `bin/okf`.
 
 # Initialize only a bare OKF bundle in any directory
 ./bin/okf init my-project/knowledge
+
+# Zero-Knowledge Sync: initialize vault and print Emergency Kit
+./bin/okf hub init-vault knowledge
+
+# Zero-Knowledge Sync: push or sync changes with the Hub
+./bin/okf hub push knowledge --password "pass" --secret-key "XXXX-..."
+./bin/okf hub sync knowledge --password "pass" --secret-key "XXXX-..."
 ```
 
 ### 3. Bootstrapping Agent Memory in Any Project
