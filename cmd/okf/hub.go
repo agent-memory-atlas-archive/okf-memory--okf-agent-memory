@@ -66,6 +66,7 @@ func loadVaultConfig(dir string) (*VaultConfigFile, error) {
 
 func saveVaultConfig(dir string, cfg *VaultConfigFile) error {
 	cfgPath := filepath.Join(dir, configFileName)
+	// #nosec G117 -- local vault configuration optionally stores user hub bearer token
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
@@ -203,14 +204,14 @@ func cmdHub(args []string) {
 	case "init-vault":
 		fs := flag.NewFlagSet("hub init-vault", flag.ExitOnError)
 		hubURL := fs.String("hub", "", "Hub server URL (default from .okf-vault.json or http://127.0.0.1:8080)")
-		token := fs.String("token", "", "Optional Hub authentication Bearer token")
+		authToken := fs.String("auth-token", "", "Optional Hub authentication Bearer token")
 		_ = fs.Parse(subargs)
 
 		dir := "."
 		if fs.NArg() > 0 {
 			dir = fs.Arg(0)
 		}
-		if err := runHubInitVault(os.Stdout, dir, *hubURL, *token); err != nil {
+		if err := runHubInitVault(os.Stdout, dir, *hubURL, *authToken); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
