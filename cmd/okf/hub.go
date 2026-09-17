@@ -20,11 +20,35 @@ import (
 
 // VaultConfigFile stores local configuration for syncing an OKF bundle.
 type VaultConfigFile struct {
-	VaultID string `json:"vault_id"`
-	HubURL  string `json:"hub_url,omitempty"`
+	VaultID   string `json:"vault_id"`
+	HubURL    string `json:"hub_url,omitempty"`
+	AuthToken string `json:"auth_token,omitempty"`
 }
 
 const configFileName = ".okf-vault.json"
+
+func resolveHubURL(flagURL string, cfg *VaultConfigFile) string {
+	if flagURL != "" {
+		return flagURL
+	}
+	if cfg != nil && cfg.HubURL != "" {
+		return cfg.HubURL
+	}
+	return "http://127.0.0.1:8080"
+}
+
+func resolveToken(flagToken string, cfg *VaultConfigFile) string {
+	if flagToken != "" {
+		return flagToken
+	}
+	if env := os.Getenv("OKF_HUB_TOKEN"); env != "" {
+		return env
+	}
+	if cfg != nil && cfg.AuthToken != "" {
+		return cfg.AuthToken
+	}
+	return ""
+}
 
 func loadVaultConfig(dir string) (*VaultConfigFile, error) {
 	cfgPath := filepath.Join(dir, configFileName)
@@ -50,7 +74,7 @@ func saveVaultConfig(dir string, cfg *VaultConfigFile) error {
 	return os.WriteFile(cfgPath, data, 0o644)
 }
 
-func runHubInitVault(w io.Writer, dir string) error {
+func runHubInitVault(w io.Writer, dir, hubURL, authToken string) error {
 	// Generate random 16-byte vault ID
 	idBytes := make([]byte, 16)
 	if _, err := rand.Read(idBytes); err != nil {
@@ -63,9 +87,14 @@ func runHubInitVault(w io.Writer, dir string) error {
 		return fmt.Errorf("failed to generate secret key: %w", err)
 	}
 
+	if hubURL == "" {
+		hubURL = "http://127.0.0.1:8080"
+	}
+
 	cfg := &VaultConfigFile{
-		VaultID: vaultID,
-		HubURL:  "http://127.0.0.1:8080",
+		VaultID:   vaultID,
+		HubURL:    hubURL,
+		AuthToken: authToken,
 	}
 	if err := saveVaultConfig(dir, cfg); err != nil {
 		return fmt.Errorf("failed to save %s: %w", configFileName, err)
@@ -172,18 +201,24 @@ func cmdHub(args []string) {
 
 	switch subcmd {
 	case "init-vault":
+		fs := flag.NewFlagSet("hub init-vault", flag.ExitOnError)
+		hubURL := fs.String("hub", "", "Hub server URL (default from .okf-vault.json or http://127.0.0.1:8080)")
+		token := fs.String("token", "", "Optional Hub authentication Bearer token")
+		_ = fs.Parse(subargs)
+
 		dir := "."
-		if len(subargs) > 0 {
-			dir = subargs[0]
+		if fs.NArg() > 0 {
+			dir = fs.Arg(0)
 		}
-		if err := runHubInitVault(os.Stdout, dir); err != nil {
+		if err := runHubInitVault(os.Stdout, dir, *hubURL, *token); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 
 	case "push":
 		fs := flag.NewFlagSet("hub push", flag.ExitOnError)
-		hubURL := fs.String("hub", "http://127.0.0.1:8080", "Hub server URL")
+		hubURL := fs.String("hub", "", "Hub server URL (default from .okf-vault.json or http://127.0.0.1:8080)")
+		authToken := fs.String("auth-token", "", "Hub authentication Bearer token (or OKF_HUB_TOKEN env)")
 		password := fs.String("password", "", "Master password")
 		secretKey := fs.String("secret-key", "", "Secret key")
 		msg := fs.String("message", "CLI push", "Commit message")
@@ -200,7 +235,7 @@ func cmdHub(args []string) {
 			os.Exit(1)
 		}
 
-		client := sync.NewClient(*hubURL, "")
+		client := sync.NewClient(resolveHubURL(*hubURL, cfg), resolveToken(*authToken, cfg))
 		if err := executeHubPush(os.Stdout, dir, client, cfg.VaultID, *password, *secretKey, *msg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -208,7 +243,8 @@ func cmdHub(args []string) {
 
 	case "pull":
 		fs := flag.NewFlagSet("hub pull", flag.ExitOnError)
-		hubURL := fs.String("hub", "http://127.0.0.1:8080", "Hub server URL")
+		hubURL := fs.String("hub", "", "Hub server URL (default from .okf-vault.json or http://127.0.0.1:8080)")
+		authToken := fs.String("auth-token", "", "Hub authentication Bearer token (or OKF_HUB_TOKEN env)")
 		password := fs.String("password", "", "Master password")
 		secretKey := fs.String("secret-key", "", "Secret key")
 		_ = fs.Parse(subargs)
@@ -224,7 +260,7 @@ func cmdHub(args []string) {
 			os.Exit(1)
 		}
 
-		client := sync.NewClient(*hubURL, "")
+		client := sync.NewClient(resolveHubURL(*hubURL, cfg), resolveToken(*authToken, cfg))
 		if err := executeHubPull(os.Stdout, dir, client, cfg.VaultID, *password, *secretKey); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -232,7 +268,8 @@ func cmdHub(args []string) {
 
 	case "sync":
 		fs := flag.NewFlagSet("hub sync", flag.ExitOnError)
-		hubURL := fs.String("hub", "http://127.0.0.1:8080", "Hub server URL")
+		hubURL := fs.String("hub", "", "Hub server URL (default from .okf-vault.json or http://127.0.0.1:8080)")
+		authToken := fs.String("auth-token", "", "Hub authentication Bearer token (or OKF_HUB_TOKEN env)")
 		password := fs.String("password", "", "Master password")
 		secretKey := fs.String("secret-key", "", "Secret key")
 		msg := fs.String("message", "CLI sync", "Commit message")
@@ -249,7 +286,7 @@ func cmdHub(args []string) {
 			os.Exit(1)
 		}
 
-		client := sync.NewClient(*hubURL, "")
+		client := sync.NewClient(resolveHubURL(*hubURL, cfg), resolveToken(*authToken, cfg))
 		if err := executeHubSync(os.Stdout, dir, client, cfg.VaultID, *password, *secretKey, *msg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -293,5 +330,12 @@ Commands:
   pull [bundle]            Pull latest remote changes into the local bundle
   sync [bundle]            Pull and push with automated conflict reconciliation
   serve [--port 8080]      Run embedded blind CAS server for self-hosting and testing
+
+Flags (push, pull, sync, init-vault):
+  -hub <url>               Hub server URL (default from .okf-vault.json or http://127.0.0.1:8080)
+  -auth-token <token>      Hub authentication Bearer token (or OKF_HUB_TOKEN env)
+  -password <pass>         Master password
+  -secret-key <key>        Secret key
+  -message <msg>           Commit message (push, sync)
 `)
 }

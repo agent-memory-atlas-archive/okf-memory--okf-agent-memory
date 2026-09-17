@@ -37,7 +37,7 @@ func TestCmdHub_InitVault(t *testing.T) {
 	var buf bytes.Buffer
 	dir := t.TempDir()
 
-	err := runHubInitVault(&buf, dir)
+	err := runHubInitVault(&buf, dir, "http://127.0.0.1:8080", "")
 	if err != nil {
 		t.Fatalf("runHubInitVault error: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestCmdHub_PushPullSyncWithServer(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(dirA, "index.md"), []byte("# Knowledge Index\nokf_version: 0.2\n"), 0o644)
 
 	var initBuf bytes.Buffer
-	if err := runHubInitVault(&initBuf, dirA); err != nil {
+	if err := runHubInitVault(&initBuf, dirA, "http://127.0.0.1:8080", ""); err != nil {
 		t.Fatalf("init error: %v", err)
 	}
 
@@ -111,5 +111,95 @@ func TestCmdHub_PushPullSyncWithServer(t *testing.T) {
 	}
 	if string(pulledIndex) != "# Knowledge Index\nokf_version: 0.2\n" {
 		t.Fatalf("unexpected content in pulled index.md: %s", string(pulledIndex))
+	}
+}
+
+func TestResolveToken(t *testing.T) {
+	cfg := &VaultConfigFile{
+		VaultID:   "v_test",
+		HubURL:    "http://127.0.0.1:8080",
+		AuthToken: "cfg-token",
+	}
+
+	// 1. Flag priority
+	t.Setenv("OKF_HUB_TOKEN", "env-token")
+
+	if tok := resolveToken("flag-token", cfg); tok != "flag-token" {
+		t.Fatalf("expected flag-token, got %s", tok)
+	}
+
+	// 2. Env priority over config
+	if tok := resolveToken("", cfg); tok != "env-token" {
+		t.Fatalf("expected env-token, got %s", tok)
+	}
+
+	// 3. Config fallback
+	t.Setenv("OKF_HUB_TOKEN", "")
+	if tok := resolveToken("", cfg); tok != "cfg-token" {
+		t.Fatalf("expected cfg-token, got %s", tok)
+	}
+
+	// 4. Empty
+	if tok := resolveToken("", nil); tok != "" {
+		t.Fatalf("expected empty string, got %s", tok)
+	}
+}
+
+func TestCmdHub_BearerAuthProtection(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "index.md"), []byte("# Index\n"), 0o644)
+	var initBuf bytes.Buffer
+	if err := runHubInitVault(&initBuf, dir, "http://127.0.0.1:8080", "secret-token"); err != nil {
+		t.Fatalf("init error: %v", err)
+	}
+	cfg, _ := loadVaultConfig(dir)
+	secretKey, _ := vault.GenerateSecretKey()
+
+	// Handler that requires Bearer secret-token
+	authHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer secret-token" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		// Forward to memory server
+		newTestHubServer().Handler().ServeHTTP(w, r)
+	})
+
+	// Client with valid token
+	clientValid := newTestClientFromHandler(authHandler, "secret-token")
+	var pushBuf bytes.Buffer
+	err := executeHubPush(&pushBuf, dir, clientValid, cfg.VaultID, "pass", secretKey, "msg")
+	if err != nil {
+		t.Fatalf("expected push to succeed with valid token, got: %v", err)
+	}
+
+	// Client with wrong token
+	clientInvalid := newTestClientFromHandler(authHandler, "wrong-token")
+	err = executeHubPush(&pushBuf, dir, clientInvalid, cfg.VaultID, "pass", secretKey, "msg")
+	if err == nil || !strings.Contains(err.Error(), "unauthorized") {
+		t.Fatalf("expected unauthorized error with wrong token, got: %v", err)
+	}
+}
+
+func TestResolveHubURL(t *testing.T) {
+	cfg := &VaultConfigFile{
+		VaultID: "v_test",
+		HubURL:  "https://hub.example.com",
+	}
+
+	// Flag priority
+	if u := resolveHubURL("http://override.local", cfg); u != "http://override.local" {
+		t.Fatalf("expected override URL, got %s", u)
+	}
+
+	// Config fallback
+	if u := resolveHubURL("", cfg); u != "https://hub.example.com" {
+		t.Fatalf("expected config URL, got %s", u)
+	}
+
+	// Default fallback
+	if u := resolveHubURL("", nil); u != "http://127.0.0.1:8080" {
+		t.Fatalf("expected default URL, got %s", u)
 	}
 }
