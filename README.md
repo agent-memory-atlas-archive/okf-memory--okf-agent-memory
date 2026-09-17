@@ -150,8 +150,8 @@ This generates the standalone binary at `bin/okf`.
 # Zero-Knowledge Sync: initialize vault and print Emergency Kit
 ./bin/okf hub init-vault knowledge
 
-# Zero-Knowledge Sync: push or sync changes with the Hub
-./bin/okf hub push knowledge --password "pass" --secret-key "XXXX-..."
+# Zero-Knowledge Sync: push or sync changes with the Hub (optional: --token or OKF_HUB_TOKEN)
+./bin/okf hub push knowledge --password "pass" --secret-key "XXXX-..." --auth-token "my-token"
 ./bin/okf hub sync knowledge --password "pass" --secret-key "XXXX-..."
 ```
 
