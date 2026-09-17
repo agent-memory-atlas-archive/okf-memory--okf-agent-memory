@@ -1,4 +1,7 @@
 ## 2026-09-17
+* **Release**: Published version v0.4.0 — Zero-Knowledge Vault Synchronization, client-side AES-256-GCM envelope encryption, Argon2id KDF, CAS blind sync protocol, atomic head concurrency control, 3-way reconcile engine, and OKF Memory Hub CLI suite with Bearer token authentication.
+* **Update**: Updated concept `roadmap/milestones.md`.
+* **Update**: Updated concept `architecture/zero-knowledge-vault-sync.md`.
 * **Update**: Updated concept `convention/coding-standards.md`.
 * **Update**: Updated concept `convention/contributing.md`.
 
