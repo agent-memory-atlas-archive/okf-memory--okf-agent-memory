@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -201,5 +202,136 @@ func TestResolveHubURL(t *testing.T) {
 	// Default fallback
 	if u := resolveHubURL("", nil); u != "http://127.0.0.1:8080" {
 		t.Fatalf("expected default URL, got %s", u)
+	}
+}
+
+func TestCmdHub_Serve_E2E_Socket(t *testing.T) {
+	// 1. Start real embedded HTTP server on dynamic local port (as in "okf hub serve")
+	srv := sync.NewServer("")
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
+	password := "master-pass-e2e"
+	secretKey, err := vault.GenerateSecretKey()
+	if err != nil {
+		t.Fatalf("GenerateSecretKey error: %v", err)
+	}
+
+	// 2. Initialize Bundle A on real HTTP server URL
+	dirA := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dirA, "index.md"), []byte("# Root Index\nokf_version: 0.2\n"), 0o644)
+	subDirA := filepath.Join(dirA, "concepts")
+	_ = os.MkdirAll(subDirA, 0o755)
+	_ = os.WriteFile(filepath.Join(subDirA, "architecture.md"), []byte("# Architecture\nSocket E2E test\n"), 0o644)
+
+	var initBuf bytes.Buffer
+	if err := runHubInitVault(&initBuf, dirA, ts.URL, "secret-token-e2e"); err != nil {
+		t.Fatalf("init-vault error: %v", err)
+	}
+
+	cfgA, err := loadVaultConfig(dirA)
+	if err != nil {
+		t.Fatalf("load config error: %v", err)
+	}
+	if cfgA.HubURL != ts.URL {
+		t.Fatalf("expected config hub_url %s, got %s", ts.URL, cfgA.HubURL)
+	}
+
+	// 3. Client A: Real HTTP Push
+	clientA := sync.NewClient(ts.URL, "secret-token-e2e")
+	var pushBuf bytes.Buffer
+	err = executeHubPush(&pushBuf, dirA, clientA, cfgA.VaultID, password, secretKey, "Initial socket push")
+	if err != nil {
+		t.Fatalf("real socket push failed: %v", err)
+	}
+	if !strings.Contains(pushBuf.String(), "Push completed") {
+		t.Fatalf("expected push completed, got:\n%s", pushBuf.String())
+	}
+
+	// 4. Verify remote head over real HTTP
+	headResp, err := clientA.GetHead(context.Background(), cfgA.VaultID)
+	if err != nil {
+		t.Fatalf("GetHead over socket failed: %v", err)
+	}
+	if headResp.HeadCommit == "" {
+		t.Fatalf("expected non-empty head commit on remote server")
+	}
+
+	// 5. Client B: Clone / Pull into separate Bundle B over real HTTP
+	dirB := t.TempDir()
+	clientB := sync.NewClient(ts.URL, "secret-token-e2e")
+	var pullBuf bytes.Buffer
+	err = executeHubPull(&pullBuf, dirB, clientB, cfgA.VaultID, password, secretKey)
+	if err != nil {
+		t.Fatalf("real socket pull failed: %v", err)
+	}
+
+	// 6. Verify bit-exact file matching over socket
+	pulledIndex, err := os.ReadFile(filepath.Join(dirB, "index.md"))
+	if err != nil {
+		t.Fatalf("failed to read pulled index.md: %v", err)
+	}
+	if string(pulledIndex) != "# Root Index\nokf_version: 0.2\n" {
+		t.Fatalf("mismatch in pulled index.md: %s", string(pulledIndex))
+	}
+
+	pulledArch, err := os.ReadFile(filepath.Join(dirB, "concepts", "architecture.md"))
+	if err != nil {
+		t.Fatalf("failed to read pulled architecture.md: %v", err)
+	}
+	if string(pulledArch) != "# Architecture\nSocket E2E test\n" {
+		t.Fatalf("mismatch in pulled architecture.md: %s", string(pulledArch))
+	}
+
+	// 7. Verify Concurrent Reconcile Sync over real HTTP socket (disjoint addition)
+	noteBPath := filepath.Join(dirB, "concepts", "note_b.md")
+	_ = os.WriteFile(noteBPath, []byte("# Note B\nCreated on Device B\n"), 0o644)
+	var syncBuf bytes.Buffer
+	err = executeHubSync(&syncBuf, dirB, clientB, cfgA.VaultID, password, secretKey, "Sync note B from device B")
+	if err != nil {
+		t.Fatalf("real socket sync failed: %v", err)
+	}
+	if !strings.Contains(syncBuf.String(), "Sync completed") {
+		t.Fatalf("expected sync completed, got:\n%s", syncBuf.String())
+	}
+	if strings.Contains(syncBuf.String(), "Collision detected") {
+		t.Fatalf("expected no collision for disjoint add, got:\n%s", syncBuf.String())
+	}
+
+	// Device A pulls the merged state
+	var pullBuf2 bytes.Buffer
+	err = executeHubPull(&pullBuf2, dirA, clientA, cfgA.VaultID, password, secretKey)
+	if err != nil {
+		t.Fatalf("device A pull failed: %v", err)
+	}
+
+	pulledNoteB, err := os.ReadFile(filepath.Join(dirA, "concepts", "note_b.md"))
+	if err != nil {
+		t.Fatalf("device A failed to receive note_b.md: %v", err)
+	}
+	if string(pulledNoteB) != "# Note B\nCreated on Device B\n" {
+		t.Fatalf("content mismatch for note_b.md on device A: %s", string(pulledNoteB))
+	}
+
+	// 8. Verify Collision Failsafe over real HTTP socket
+	// Device B modifies note_b.md. In stateless CLI execution, conflicting edits fork safely into .conflict-local.md
+	_ = os.WriteFile(noteBPath, []byte("# Note B Conflicting Local Edit\n"), 0o644)
+	var syncBufConflict bytes.Buffer
+	err = executeHubSync(&syncBufConflict, dirB, clientB, cfgA.VaultID, password, secretKey, "Device B sync conflicting edit")
+	if err != nil {
+		t.Fatalf("device B sync with conflict failed: %v", err)
+	}
+	if !strings.Contains(syncBufConflict.String(), "Collision detected at concepts/note_b.md") {
+		t.Fatalf("expected collision detected warning, got:\n%s", syncBufConflict.String())
+	}
+
+	// Verify conflict-local file created with zero data loss
+	conflictForkPath := filepath.Join(dirB, "concepts", "note_b.conflict-local.md")
+	conflictContent, err := os.ReadFile(conflictForkPath)
+	if err != nil {
+		t.Fatalf("conflict fork file %s was not created: %v", conflictForkPath, err)
+	}
+	if string(conflictContent) != "# Note B Conflicting Local Edit\n" {
+		t.Fatalf("unexpected content in conflict fork: %s", string(conflictContent))
 	}
 }
