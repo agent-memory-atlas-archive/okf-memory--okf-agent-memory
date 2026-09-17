@@ -94,17 +94,24 @@ func TestMCPHandshakeAndToolsList(t *testing.T) {
 }
 
 func TestMCPToolsListOutputSchemas(t *testing.T) {
-	// Every tool must advertise an outputSchema so clients can validate
-	// structured results (and typed confirmation strings) without guessing.
+	// Any advertised outputSchema must strictly have root type: "object" per MCP spec
+	// so strict clients (e.g. OpenCode) do not reject the tools/list handshake.
+	// Tools returning arrays or string confirmations (okf_search, okf_create, okf_update, okf_relate)
+	// omit outputSchema.
 	for _, tool := range getMCPTools() {
 		name, _ := tool["name"].(string)
-		schema, ok := tool["outputSchema"].(map[string]any)
-		if !ok {
-			t.Errorf("Tool %q is missing outputSchema", name)
+		schema, hasSchema := tool["outputSchema"].(map[string]any)
+		if !hasSchema {
+			if name == "okf_show" || name == "okf_validate" {
+				t.Errorf("Tool %q expected to advertise outputSchema", name)
+			}
 			continue
 		}
-		if schema["type"] != "object" && schema["type"] != "array" && schema["type"] != "string" {
-			t.Errorf("Tool %q has unexpected outputSchema type %v", name, schema["type"])
+		if name != "okf_show" && name != "okf_validate" {
+			t.Errorf("Tool %q unexpectedly advertised outputSchema: %+v", name, schema)
+		}
+		if schema["type"] != "object" {
+			t.Errorf("Tool %q outputSchema type must be 'object' per MCP spec, got %v", name, schema["type"])
 		}
 		if _, ok := schema["description"].(string); !ok {
 			t.Errorf("Tool %q outputSchema is missing a description", name)
@@ -113,9 +120,8 @@ func TestMCPToolsListOutputSchemas(t *testing.T) {
 }
 
 func TestMCPOutputSchemasV02Properties(t *testing.T) {
-	// Schemas must cover the OKF v0.2.0 struct fields clients rely on
-	// (governance/code_refs for --for-path constraint checks, body for
-	// full-concept reads, gate/broken-link diagnostics for validation).
+	// Schemas for structured object tools (okf_show, okf_validate) must cover
+	// OKF v0.2.0 struct fields (governance/code_refs, body, gate/broken-link diagnostics).
 	byName := map[string]map[string]any{}
 	for _, tool := range getMCPTools() {
 		name, _ := tool["name"].(string)
@@ -127,24 +133,13 @@ func TestMCPOutputSchemasV02Properties(t *testing.T) {
 		if !ok {
 			t.Fatalf("Tool %q is missing outputSchema", tool)
 		}
-		if schema["type"] == "array" {
-			items, _ := schema["items"].(map[string]any)
-			p, _ := items["properties"].(map[string]any)
-			return p
-		}
 		p, _ := schema["properties"].(map[string]any)
 		return p
 	}
-	for _, want := range []string{"governance", "code_refs"} {
-		if _, ok := props("okf_search")[want]; !ok {
-			t.Errorf("okf_search outputSchema missing %q", want)
-		}
+	for _, want := range []string{"governance", "code_refs", "body"} {
 		if _, ok := props("okf_show")[want]; !ok {
 			t.Errorf("okf_show outputSchema missing %q", want)
 		}
-	}
-	if _, ok := props("okf_show")["body"]; !ok {
-		t.Errorf("okf_show outputSchema missing %q", "body")
 	}
 	for _, want := range []string{"declared_version", "gate_findings", "broken_links"} {
 		if _, ok := props("okf_validate")[want]; !ok {
@@ -769,6 +764,70 @@ func TestMCPBundle_BackslashTraversalDenied(t *testing.T) {
 		isError, _ := rMap["isError"].(bool)
 		if !isError {
 			t.Errorf("Expected response %d to have isError: true, got: %+v", i+1, rMap)
+		}
+	}
+}
+
+func TestMCPNonKnowledgeBundleResolution(t *testing.T) {
+	// Reproduces and verifies the fix for Issue #31:
+	// Running MCP server with a non-knowledge bundle name (e.g. "okf" or "custom")
+	// must set rootDir to the bundle's parent directory, avoiding doubled paths ("okf/okf").
+	tmpDir := t.TempDir()
+	origCwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to getwd: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origCwd)
+	})
+
+	bundleName := "okf"
+	bundleDir := filepath.Join(tmpDir, bundleName)
+	_ = os.MkdirAll(bundleDir, 0o755)
+	_ = os.WriteFile(filepath.Join(bundleDir, "index.md"), []byte("---\nokf_version: \"0.2\"\n---\n# OKF Bundle\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(bundleDir, "log.md"), []byte("# Log\n"), 0o644)
+
+	conceptContent := `---
+type: Fact
+title: Non-Knowledge Test
+description: Testing bundle resolution for non-knowledge names.
+---
+# Non-Knowledge Test
+Body content.
+`
+	_ = os.MkdirAll(filepath.Join(bundleDir, "facts"), 0o755)
+	_ = os.WriteFile(filepath.Join(bundleDir, "facts", "test.md"), []byte(conceptContent), 0o644)
+
+	inputs := []string{
+		// 1. Search with default bundle (omitted)
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"okf_search","arguments":{"query":"Non-Knowledge"}}}`,
+		// 2. Search with explicit bundle name
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"okf_search","arguments":{"bundle":"okf","query":"Non-Knowledge"}}}`,
+		// 3. Show with default bundle
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"okf_show","arguments":{"concept_id":"facts/test"}}}`,
+		// 4. Show with explicit bundle name
+		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"okf_show","arguments":{"bundle":"okf","concept_id":"facts/test"}}}`,
+	}
+
+	responses := runMCPConversation(t, bundleName, inputs)
+	if len(responses) != len(inputs) {
+		t.Fatalf("Expected %d responses, got %d", len(inputs), len(responses))
+	}
+
+	for i, r := range responses {
+		if r.Error != nil {
+			t.Errorf("Response %d returned JSON-RPC error: %+v", i+1, r.Error)
+			continue
+		}
+		rMap, ok := r.Result.(map[string]any)
+		if !ok {
+			t.Fatalf("Response %d has unexpected result type: %T", i+1, r.Result)
+		}
+		if isErr, _ := rMap["isError"].(bool); isErr {
+			t.Errorf("Response %d unexpectedly reported isError: true, result: %+v", i+1, rMap)
 		}
 	}
 }
