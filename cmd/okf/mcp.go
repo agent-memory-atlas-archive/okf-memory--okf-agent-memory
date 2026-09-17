@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -139,11 +140,14 @@ func (s *mcpServer) sendError(id *json.RawMessage, code int, message string) {
 	_, _ = s.writer.Write(append(data, '\n'))
 }
 
-func (s *mcpServer) sendToolResult(id *json.RawMessage, text string, isError bool) {
+func (s *mcpServer) sendToolResult(id *json.RawMessage, text string, structured any, isError bool) {
 	res := map[string]any{
 		"content": []map[string]string{
 			{"type": "text", "text": text},
 		},
+	}
+	if structured != nil && !isError {
+		res["structuredContent"] = structured
 	}
 	if isError {
 		res["isError"] = true
@@ -213,195 +217,19 @@ func (s *mcpServer) handleRequest(req jsonRPCRequest) {
 	}
 }
 
-func getMCPTools() []map[string]any {
-	bundleProp := map[string]any{
-		"type":        "string",
-		"description": "Optional path to the OKF knowledge bundle directory (defaults to 'knowledge' or project bundle).",
-	}
+//go:embed schemas/tools.json
+var embeddedToolsJSON []byte
 
-	return []map[string]any{
-		{
-			"name":        "okf_search",
-			"description": "Search the OKF knowledge bundle for concepts by query terms, tags, and titles using in-memory BM25 scoring, or by file path via code_refs.",
-			"inputSchema": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"query": map[string]any{
-						"type":        "string",
-						"description": "Search terms to find matching concepts.",
-					},
-					"for_path": map[string]any{
-						"type":        "string",
-						"description": "Optional file or directory path to find governing concepts via code_refs (e.g. 'pkg/okf/types.go').",
-					},
-					"limit": map[string]any{
-						"type":        "integer",
-						"description": "Maximum number of results (default 10).",
-					},
-					"bundle": bundleProp,
-				},
-				"required": []string{},
-			},
-		},
-		{
-			"name":        "okf_show",
-			"description": "Show the full content, frontmatter, and relationships of a specific concept.",
-			"inputSchema": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"concept_id": map[string]any{
-						"type":        "string",
-						"description": "The concept ID (e.g. 'architecture/layers').",
-					},
-					"bundle": bundleProp,
-				},
-				"required": []string{"concept_id"},
-			},
-			"outputSchema": map[string]any{
-				"type":        "object",
-				"description": "The concept record (frontmatter fields plus body).",
-				"properties": map[string]any{
-					"id":          map[string]any{"type": "string"},
-					"path":        map[string]any{"type": "string"},
-					"type":        map[string]any{"type": "string"},
-					"title":       map[string]any{"type": "string"},
-					"description": map[string]any{"type": "string"},
-					"tags":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"status":      map[string]any{"type": "string"},
-					"stale_after": map[string]any{"type": "string"},
-					"body":        map[string]any{"type": "string", "description": "Markdown body after frontmatter."},
-					"governance":  map[string]any{"type": "string", "description": "Agent authority level: constraint | hold | context."},
-					"code_refs":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Source paths or globs this concept governs."},
-				},
-				"required": []string{"id", "path", "type"},
-			},
-		},
-		{
-			"name":        "okf_validate",
-			"description": "Validate the entire OKF bundle for conformance, broken links, orphans, and description drift.",
-			"inputSchema": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"strict": map[string]any{
-						"type":        "boolean",
-						"description": "Treat connectivity warnings and trust gaps as errors.",
-					},
-					"stale": map[string]any{
-						"type":        "boolean",
-						"description": "Fail if any concepts have reached their stale_after date.",
-					},
-					"bundle": bundleProp,
-				},
-				"required": []string{},
-			},
-			"outputSchema": map[string]any{
-				"type":        "object",
-				"description": "Validation report for the bundle.",
-				"properties": map[string]any{
-					"bundle_path":      map[string]any{"type": "string"},
-					"declared_version": map[string]any{"type": "string", "description": "OKF version declared by the bundle."},
-					"concept_count":    map[string]any{"type": "integer"},
-					"errors":           map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"warnings":         map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"gate_findings":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Diagnostics from governance/code_refs gates."},
-					"broken_links": map[string]any{"type": "array", "items": map[string]any{
-						"type": "object",
-						"properties": map[string]any{
-							"source_concept": map[string]any{"type": "string"},
-							"target_href":    map[string]any{"type": "string"},
-							"reason":         map[string]any{"type": "string"},
-						},
-					}, "description": "Graph integrity findings."},
-					"orphans":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"stale_count":   map[string]any{"type": "integer"},
-					"is_conformant": map[string]any{"type": "boolean"},
-					"gate_passed":   map[string]any{"type": "boolean"},
-				},
-				"required": []string{"bundle_path", "concept_count", "errors", "warnings", "is_conformant", "gate_passed"},
-			},
-		},
-		{
-			"name":        "okf_create",
-			"description": "Create a new concept with frontmatter and automatic bookkeeping (updating log.md and parent index.md).",
-			"inputSchema": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"concept_id": map[string]any{
-						"type":        "string",
-						"description": "Path without .md (e.g. 'decisions/auth-flow').",
-					},
-					"type": map[string]any{
-						"type":        "string",
-						"description": "The concept type (e.g. 'Decision', 'Fact', 'Process').",
-					},
-					"title": map[string]any{
-						"type":        "string",
-						"description": "Human-readable title.",
-					},
-					"description": map[string]any{
-						"type":        "string",
-						"description": "One sentence summary of the concept.",
-					},
-					"body": map[string]any{
-						"type":        "string",
-						"description": "Markdown body content.",
-					},
-					"bundle": bundleProp,
-				},
-				"required": []string{"concept_id", "type", "title", "description"},
-			},
-		},
-		{
-			"name":        "okf_update",
-			"description": "Update an existing concept's title, description, or body with automatic log.md bookkeeping.",
-			"inputSchema": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"concept_id": map[string]any{
-						"type":        "string",
-						"description": "Path without .md (e.g. 'decisions/auth-flow').",
-					},
-					"title": map[string]any{
-						"type":        "string",
-						"description": "Updated human-readable title.",
-					},
-					"description": map[string]any{
-						"type":        "string",
-						"description": "Updated one-sentence summary.",
-					},
-					"body": map[string]any{
-						"type":        "string",
-						"description": "Updated markdown body content.",
-					},
-					"bundle": bundleProp,
-				},
-				"required": []string{"concept_id"},
-			},
-		},
-		{
-			"name":        "okf_relate",
-			"description": "Connect two concepts with a relative link and context description.",
-			"inputSchema": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"source_id": map[string]any{
-						"type":        "string",
-						"description": "Source concept ID.",
-					},
-					"target_id": map[string]any{
-						"type":        "string",
-						"description": "Target concept ID.",
-					},
-					"description": map[string]any{
-						"type":        "string",
-						"description": "Context description explaining the relationship.",
-					},
-					"bundle": bundleProp,
-				},
-				"required": []string{"source_id", "target_id"},
-			},
-		},
+var cachedMCPTools []map[string]any
+
+func init() {
+	if err := json.Unmarshal(embeddedToolsJSON, &cachedMCPTools); err != nil {
+		panic(fmt.Sprintf("okf: corrupt embedded schemas/tools.json: %v", err))
 	}
+}
+
+func getMCPTools() []map[string]any {
+	return cachedMCPTools
 }
 
 func (s *mcpServer) resolveBundleDir(callParams mcpToolCallParams) (string, error) {
@@ -494,13 +322,13 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 
 	bundleDir, err := s.resolveBundleDir(callParams)
 	if err != nil {
-		s.sendToolResult(req.ID, fmt.Sprintf("Path traversal denied: %v", err), true)
+		s.sendToolResult(req.ID, fmt.Sprintf("Path traversal denied: %v", err), nil, true)
 		return
 	}
 
 	b, err := okf.LoadBundle(bundleDir)
 	if err != nil {
-		s.sendToolResult(req.ID, fmt.Sprintf("Failed to load bundle from %q: %v", bundleDir, err), true)
+		s.sendToolResult(req.ID, fmt.Sprintf("Failed to load bundle from %q: %v", bundleDir, err), nil, true)
 		return
 	}
 
@@ -522,23 +350,24 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 			results = []okf.SearchResult{}
 		}
 		resJSON, _ := json.Marshal(results)
-		s.sendToolResult(req.ID, string(resJSON), false)
+		envelope := map[string]any{"results": results}
+		s.sendToolResult(req.ID, string(resJSON), envelope, false)
 
 	case "okf_show":
 		conceptID, _ := callParams.Arguments["concept_id"].(string)
 		conceptID = strings.TrimSpace(conceptID)
 		if err := okf.ValidateConceptID(conceptID); err != nil {
-			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), true)
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), nil, true)
 			return
 		}
 		conceptID = strings.TrimSuffix(conceptID, ".md")
 		c, ok := b.Concepts[conceptID]
 		if !ok {
-			s.sendToolResult(req.ID, fmt.Sprintf("Concept '%s' not found in %s", conceptID, bundleDir), true)
+			s.sendToolResult(req.ID, fmt.Sprintf("Concept '%s' not found in %s", conceptID, bundleDir), nil, true)
 			return
 		}
 		resJSON, _ := json.Marshal(c)
-		s.sendToolResult(req.ID, string(resJSON), false)
+		s.sendToolResult(req.ID, string(resJSON), c, false)
 
 	case "okf_validate":
 		strict := true
@@ -550,14 +379,29 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 			stale = stVal
 		}
 		res := okf.Validate(b, okf.ValidateOptions{Strict: strict, Drift: true, Stale: stale})
+		if res.Errors == nil {
+			res.Errors = []string{}
+		}
+		if res.Warnings == nil {
+			res.Warnings = []string{}
+		}
+		if res.GateFindings == nil {
+			res.GateFindings = []string{}
+		}
+		if res.BrokenLinks == nil {
+			res.BrokenLinks = []okf.BrokenLink{}
+		}
+		if res.Orphans == nil {
+			res.Orphans = []string{}
+		}
 		resJSON, _ := json.Marshal(res)
-		s.sendToolResult(req.ID, string(resJSON), false)
+		s.sendToolResult(req.ID, string(resJSON), res, false)
 
 	case "okf_create":
 		conceptID, _ := callParams.Arguments["concept_id"].(string)
 		conceptID = strings.TrimSpace(conceptID)
 		if err := okf.ValidateConceptID(conceptID); err != nil {
-			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), true)
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), nil, true)
 			return
 		}
 		conceptType, _ := callParams.Arguments["type"].(string)
@@ -576,23 +420,31 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 		}
 
 		if err := okf.SaveConcept(bundleDir, c, true, true, true, "agent/mcp"); err != nil {
-			s.sendToolResult(req.ID, fmt.Sprintf("Failed to save concept: %v", err), true)
+			s.sendToolResult(req.ID, fmt.Sprintf("Failed to save concept: %v", err), nil, true)
 			return
 		}
 
-		s.sendToolResult(req.ID, fmt.Sprintf("Successfully created concept %s in %s", c.Path, bundleDir), false)
+		msg := fmt.Sprintf("Successfully created concept %s in %s", c.Path, bundleDir)
+		structured := map[string]any{
+			"success":    true,
+			"concept_id": c.ID,
+			"path":       c.Path,
+			"bundle":     bundleDir,
+			"message":    msg,
+		}
+		s.sendToolResult(req.ID, msg, structured, false)
 
 	case "okf_update":
 		conceptID, _ := callParams.Arguments["concept_id"].(string)
 		conceptID = strings.TrimSpace(conceptID)
 		if err := okf.ValidateConceptID(conceptID); err != nil {
-			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), true)
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), nil, true)
 			return
 		}
 		cleanID := strings.TrimSuffix(conceptID, ".md")
 		c, ok := b.Concepts[cleanID]
 		if !ok {
-			s.sendToolResult(req.ID, fmt.Sprintf("Concept '%s' not found in %s", cleanID, bundleDir), true)
+			s.sendToolResult(req.ID, fmt.Sprintf("Concept '%s' not found in %s", cleanID, bundleDir), nil, true)
 			return
 		}
 
@@ -607,11 +459,19 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 		}
 
 		if err := okf.SaveConcept(bundleDir, c, false, true, true, "agent/mcp"); err != nil {
-			s.sendToolResult(req.ID, fmt.Sprintf("Failed to update concept: %v", err), true)
+			s.sendToolResult(req.ID, fmt.Sprintf("Failed to update concept: %v", err), nil, true)
 			return
 		}
 
-		s.sendToolResult(req.ID, fmt.Sprintf("Successfully updated concept %s in %s", c.Path, bundleDir), false)
+		msg := fmt.Sprintf("Successfully updated concept %s in %s", c.Path, bundleDir)
+		structured := map[string]any{
+			"success":    true,
+			"concept_id": c.ID,
+			"path":       c.Path,
+			"bundle":     bundleDir,
+			"message":    msg,
+		}
+		s.sendToolResult(req.ID, msg, structured, false)
 
 	case "okf_relate":
 		srcID, _ := callParams.Arguments["source_id"].(string)
@@ -619,13 +479,21 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 		desc, _ := callParams.Arguments["description"].(string)
 
 		if err := okf.RelateConcepts(bundleDir, srcID, tgtID, desc, "agent/mcp"); err != nil {
-			s.sendToolResult(req.ID, fmt.Sprintf("Failed to relate concepts: %v", err), true)
+			s.sendToolResult(req.ID, fmt.Sprintf("Failed to relate concepts: %v", err), nil, true)
 			return
 		}
 
-		s.sendToolResult(req.ID, fmt.Sprintf("Successfully linked '%s' -> '%s' in %s", srcID, tgtID, bundleDir), false)
+		msg := fmt.Sprintf("Successfully linked '%s' -> '%s' in %s", srcID, tgtID, bundleDir)
+		structured := map[string]any{
+			"success":   true,
+			"source_id": srcID,
+			"target_id": tgtID,
+			"bundle":    bundleDir,
+			"message":   msg,
+		}
+		s.sendToolResult(req.ID, msg, structured, false)
 
 	default:
-		s.sendToolResult(req.ID, fmt.Sprintf("Unknown tool: %s", callParams.Name), true)
+		s.sendToolResult(req.ID, fmt.Sprintf("Unknown tool: %s", callParams.Name), nil, true)
 	}
 }

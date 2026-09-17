@@ -94,34 +94,28 @@ func TestMCPHandshakeAndToolsList(t *testing.T) {
 }
 
 func TestMCPToolsListOutputSchemas(t *testing.T) {
-	// Any advertised outputSchema must strictly have root type: "object" per MCP spec
-	// so strict clients (e.g. OpenCode) do not reject the tools/list handshake.
-	// Tools returning arrays or string confirmations (okf_search, okf_create, okf_update, okf_relate)
-	// omit outputSchema.
+	// Every single tool must advertise an outputSchema with root type: "object"
+	// per MCP spec so strict clients (OpenCode, Pi agent, MCP SDK 2.0.0)
+	// accept the tools/list handshake.
 	for _, tool := range getMCPTools() {
 		name, _ := tool["name"].(string)
-		schema, hasSchema := tool["outputSchema"].(map[string]any)
-		if !hasSchema {
-			if name == "okf_show" || name == "okf_validate" {
-				t.Errorf("Tool %q expected to advertise outputSchema", name)
-			}
-			continue
-		}
-		if name != "okf_show" && name != "okf_validate" {
-			t.Errorf("Tool %q unexpectedly advertised outputSchema: %+v", name, schema)
+		schema, ok := tool["outputSchema"].(map[string]any)
+		if !ok {
+			t.Fatalf("Tool %q is missing outputSchema", name)
 		}
 		if schema["type"] != "object" {
-			t.Errorf("Tool %q outputSchema type must be 'object' per MCP spec, got %v", name, schema["type"])
+			t.Errorf("Tool %q outputSchema root type must be 'object', got %v", name, schema["type"])
 		}
 		if _, ok := schema["description"].(string); !ok {
-			t.Errorf("Tool %q outputSchema is missing a description", name)
+			t.Errorf("Tool %q outputSchema missing description", name)
+		}
+		if _, ok := schema["properties"].(map[string]any); !ok {
+			t.Errorf("Tool %q outputSchema missing properties map", name)
 		}
 	}
 }
 
-func TestMCPOutputSchemasV02Properties(t *testing.T) {
-	// Schemas for structured object tools (okf_show, okf_validate) must cover
-	// OKF v0.2.0 struct fields (governance/code_refs, body, gate/broken-link diagnostics).
+func TestMCPOutputSchemasProperties(t *testing.T) {
 	byName := map[string]map[string]any{}
 	for _, tool := range getMCPTools() {
 		name, _ := tool["name"].(string)
@@ -136,14 +130,35 @@ func TestMCPOutputSchemasV02Properties(t *testing.T) {
 		p, _ := schema["properties"].(map[string]any)
 		return p
 	}
-	for _, want := range []string{"governance", "code_refs", "body"} {
+
+	// okf_search envelope
+	searchProps := props("okf_search")
+	if _, ok := searchProps["results"]; !ok {
+		t.Errorf("okf_search outputSchema missing 'results'")
+	}
+
+	// okf_show fields
+	for _, want := range []string{"id", "path", "type", "body", "governance", "code_refs"} {
 		if _, ok := props("okf_show")[want]; !ok {
 			t.Errorf("okf_show outputSchema missing %q", want)
 		}
 	}
-	for _, want := range []string{"declared_version", "gate_findings", "broken_links"} {
+
+	// okf_validate fields
+	for _, want := range []string{"bundle_path", "declared_version", "gate_findings", "broken_links", "is_conformant", "gate_passed"} {
 		if _, ok := props("okf_validate")[want]; !ok {
 			t.Errorf("okf_validate outputSchema missing %q", want)
+		}
+	}
+
+	// mutating tools confirmation fields
+	for _, mTool := range []string{"okf_create", "okf_update", "okf_relate"} {
+		mProps := props(mTool)
+		if _, ok := mProps["success"]; !ok {
+			t.Errorf("%s outputSchema missing 'success'", mTool)
+		}
+		if _, ok := mProps["message"]; !ok {
+			t.Errorf("%s outputSchema missing 'message'", mTool)
 		}
 	}
 }
@@ -207,16 +222,17 @@ func TestMCPToolCalls(t *testing.T) {
 
 	// Initialize bundle in tmpDir
 	inputs := []string{
-		// 1. Create a concept
+		// 0. Create a concept
 		`{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"okf_create","arguments":{"concept_id":"decisions/test-concept","type":"Decision","title":"Test Concept","description":"A test concept.","body":"# Test Body"}}}`,
-		// 2. Search
+		// 1. Search
 		`{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"okf_search","arguments":{"query":"test"}}}`,
-		// 3. Show
+		// 2. Show
 		`{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"okf_show","arguments":{"concept_id":"decisions/test-concept"}}}`,
-		// 4. Update
+		// 3. Update
 		`{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"okf_update","arguments":{"concept_id":"decisions/test-concept","title":"Updated Title"}}}`,
-		// 5. Relate
+		// 4. Create second concept
 		`{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"okf_create","arguments":{"concept_id":"decisions/second-concept","type":"Decision","title":"Second Concept","description":"Another test concept.","body":"# Second Body"}}}`,
+		// 5. Relate
 		`{"jsonrpc":"2.0","id":15,"method":"tools/call","params":{"name":"okf_relate","arguments":{"source_id":"decisions/test-concept","target_id":"decisions/second-concept","description":"Related test"}}}`,
 		// 6. Validate
 		`{"jsonrpc":"2.0","id":16,"method":"tools/call","params":{"name":"okf_validate","arguments":{"strict":false}}}`,
@@ -245,9 +261,17 @@ func TestMCPToolCalls(t *testing.T) {
 			if resMap["isError"] != true {
 				t.Errorf("Expected isError=true for unknown tool")
 			}
+			if resMap["structuredContent"] != nil {
+				t.Errorf("Expected nil structuredContent on error response")
+			}
 		} else {
 			if resMap["isError"] == true {
 				t.Errorf("Step %d returned isError=true: %+v", i, resMap)
+			}
+			// Verify structuredContent is present and non-nil for all successful tool calls
+			sc, hasSC := resMap["structuredContent"].(map[string]any)
+			if !hasSC || sc == nil {
+				t.Errorf("Step %d missing structuredContent in response: %+v", i, resMap)
 			}
 		}
 	}
@@ -828,6 +852,94 @@ Body content.
 		}
 		if isErr, _ := rMap["isError"].(bool); isErr {
 			t.Errorf("Response %d unexpectedly reported isError: true, result: %+v", i+1, rMap)
+		}
+	}
+}
+
+func TestMCPStructuredContentIntegrity(t *testing.T) {
+	// Verifies that every single tool call returns:
+	// 1. Valid "content" text array (for LLMs / backwards compatibility)
+	// 2. Valid "structuredContent" object conforming to the advertised outputSchema
+	// (satisfying strict clients such as OpenCode, Pi agent, and MCP SDK 2.0.0 without -32600 errors).
+	tmpDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tmpDir, "index.md"), []byte("---\nokf_version: \"0.2\"\n---\n# Root\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "log.md"), []byte("# Log\n"), 0o644)
+
+	inputs := []string{
+		// 1. okf_create
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"okf_create","arguments":{"concept_id":"arch/bus","type":"Decision","title":"Event Bus","description":"Decoupled pubsub bus.","body":"# Bus\nDetails."}}}`,
+		// 2. okf_search
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"okf_search","arguments":{"query":"bus"}}}`,
+		// 3. okf_show
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"okf_show","arguments":{"concept_id":"arch/bus"}}}`,
+		// 4. okf_update
+		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"okf_update","arguments":{"concept_id":"arch/bus","title":"Async Event Bus"}}}`,
+		// 5. okf_create second concept & relate
+		`{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"okf_create","arguments":{"concept_id":"arch/queue","type":"Decision","title":"Queue","description":"Queue details.","body":"# Queue"}}}`,
+		`{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"okf_relate","arguments":{"source_id":"arch/bus","target_id":"arch/queue","description":"Bridges to queue."}}}`,
+		// 6. okf_validate
+		`{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"okf_validate","arguments":{"strict":false}}}`,
+	}
+
+	responses := runMCPConversation(t, tmpDir, inputs)
+	if len(responses) != len(inputs) {
+		t.Fatalf("Expected %d responses, got %d", len(inputs), len(responses))
+	}
+
+	for i, r := range responses {
+		if r.Error != nil {
+			t.Fatalf("Step %d failed with JSON-RPC error: %+v", i+1, r.Error)
+		}
+		rMap, ok := r.Result.(map[string]any)
+		if !ok {
+			t.Fatalf("Step %d result is not map: %T", i+1, r.Result)
+		}
+		if isErr, _ := rMap["isError"].(bool); isErr {
+			t.Fatalf("Step %d returned isError: true: %+v", i+1, rMap)
+		}
+
+		// Verify content array
+		content, ok := rMap["content"].([]any)
+		if !ok || len(content) == 0 {
+			t.Fatalf("Step %d missing or empty 'content'", i+1)
+		}
+
+		// Verify structuredContent
+		sc, ok := rMap["structuredContent"].(map[string]any)
+		if !ok || sc == nil {
+			t.Fatalf("Step %d missing 'structuredContent' object", i+1)
+		}
+
+		switch i {
+		case 0: // create
+			if sc["success"] != true || sc["concept_id"] != "arch/bus" || sc["path"] != "arch/bus.md" {
+				t.Errorf("Unexpected create structuredContent: %+v", sc)
+			}
+		case 1: // search
+			results, ok := sc["results"].([]any)
+			if !ok || len(results) == 0 {
+				t.Errorf("Expected search structuredContent.results to be non-empty array: %+v", sc)
+			}
+		case 2: // show
+			if sc["id"] != "arch/bus" || sc["type"] != "Decision" || strings.TrimSpace(sc["body"].(string)) != "# Bus\nDetails." {
+				t.Errorf("Unexpected show structuredContent: %+v", sc)
+			}
+		case 3: // update
+			if sc["success"] != true || sc["concept_id"] != "arch/bus" {
+				t.Errorf("Unexpected update structuredContent: %+v", sc)
+			}
+		case 4: // create second
+			if sc["success"] != true {
+				t.Errorf("Unexpected create second structuredContent: %+v", sc)
+			}
+		case 5: // relate
+			if sc["success"] != true || sc["source_id"] != "arch/bus" || sc["target_id"] != "arch/queue" {
+				t.Errorf("Unexpected relate structuredContent: %+v", sc)
+			}
+		case 6: // validate
+			if sc["is_conformant"] != true || sc["errors"] == nil || sc["warnings"] == nil {
+				t.Errorf("Unexpected validate structuredContent: %+v", sc)
+			}
 		}
 	}
 }
