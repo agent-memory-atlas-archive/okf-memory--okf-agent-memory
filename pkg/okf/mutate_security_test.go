@@ -699,6 +699,28 @@ func TestValidateCodeRefsBackslashTraversal(t *testing.T) {
 	}
 }
 
+// TestValidateConceptIDBackslashReserved verifies that concept IDs using Windows-style backslashes
+// to target reserved files are correctly blocked across platforms.
+func TestValidateConceptIDBackslashReserved(t *testing.T) {
+	cases := []string{
+		".\\log",
+		"foo\\..\\log",
+		".\\index.md",
+		"sub\\..\\index",
+		".\\AGENTS",
+		".\\AGENTS.md",
+	}
+
+	for _, id := range cases {
+		err := ValidateConceptID(id)
+		if err == nil {
+			t.Errorf("ValidateConceptID(%q) expected error for backslash reserved file bypass, got nil", id)
+		} else if !strings.Contains(err.Error(), "reserved bundle document") && !strings.Contains(err.Error(), "forbidden '..' traversal") {
+			t.Errorf("ValidateConceptID(%q) expected reserved document or traversal error, got: %v", id, err)
+		}
+	}
+}
+
 // TestValidateConceptIDControlCharacters verifies that concept IDs containing null bytes or control chars are rejected.
 func TestValidateConceptIDControlCharacters(t *testing.T) {
 	controlCases := []string{
