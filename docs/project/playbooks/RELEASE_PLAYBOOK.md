@@ -142,7 +142,10 @@ Save as `docs/releases/v<X.Y.Z>.md`:
 ### 5. Community & Special Thanks
 * A huge thank you to <contributor> ([@handle](https://github.com/handle)) for <concrete contribution, reproduction, or PR> (#<issue>).
 
-### Full Changelog
+### 6. Pre-built Binaries
+Standalone binaries for macOS, Linux, and Windows are available from the [GitHub Releases page](https://github.com/okf-memory/okf-agent-memory/releases).
+
+### 7. Full Changelog
 See commits between `v<PREV_VER>...v<X.Y.Z>` on [GitHub](https://github.com/okf-memory/okf-agent-memory/compare/v<PREV_VER>...v<X.Y.Z>).
 ```
 

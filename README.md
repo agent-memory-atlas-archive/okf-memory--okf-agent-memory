@@ -262,7 +262,7 @@ make check
 * [Security & Privacy Guidelines](docs/security/SECURITY.md) — Data governance, secret prevention, and PII protection rules.
 * [Multi-Agent Testing & Evaluation](docs/project/AGENT_TESTING.md) — Test scenarios, compatibility matrix, and benchmarks.
 * [Project Roadmap & Milestones](docs/project/ROADMAP.md) — Phased development plan.
-* [Release Playbook](docs/project/RELEASE_PLAYBOOK.md) — Versioning, CI/CD pipeline, and distribution procedures.
+* [Release Playbook](docs/project/playbooks/RELEASE_PLAYBOOK.md) — Versioning, CI/CD pipeline, and distribution procedures.
 * [Release Notes & History](docs/releases/README.md) — Versioned changelogs and historical release notes archive.
 * [OKF v0.2 Compatibility Matrix](docs/spec/OKF-COMPATIBILITY.md) — Specification validation analysis.
 * [Why OKF Agent Memory?](knowledge/project/value-proposition.md) — Detailed value proposition & differentiators.
