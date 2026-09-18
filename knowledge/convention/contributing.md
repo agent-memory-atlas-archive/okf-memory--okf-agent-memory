@@ -3,7 +3,7 @@ type: Convention
 title: "Contributor Guidelines & PR Standards"
 description: "Engineering standards, zero third-party dependency policy, validation rules, and PR workflow for contributors."
 tags: [contributing, contribute, workflow, standards, pr, pull-request]
-generated: { by: agent/mcp, at: "2026-09-17T08:05:57Z" }
+generated: { by: agent/mcp, at: "2026-09-18T08:29:01Z" }
 status: stable
 sources:
   - resource: ../../CONTRIBUTING.md
@@ -84,3 +84,4 @@ Before requesting a review or merging into `develop` (or preparing a release to 
 - [5-Layer System Architecture](../architecture/layers.md): Code contributions must adhere to the 5-layer architecture and zero-dependency rule
 - [Automated Security Auditing & Jules Remediation Workflow](security-audit.md): Continuous security audit expectations and integration pipeline
 - [Engineering & Coding Best Practices (Clean Code, TDD, DRY)](coding-standards.md): Core coding conventions including TDD, Clean Code, DRY, and idiomatic Go
+- [Release Procedure & Distribution Runbook](release-procedure.md): Release preparation, quality gates, and git tagging procedure

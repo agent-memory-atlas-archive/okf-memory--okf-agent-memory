@@ -4,7 +4,7 @@ title: "Project Roadmap & Development Milestones"
 description: "Phased implementation roadmap from specification validation to Go library, CLI tooling, cross-agent testing, and zero-knowledge hub sync."
 resource: "https://github.com/okf-memory/okf-agent-memory"
 tags: [roadmap, milestones, phases, planning]
-generated: { by: agent/gemini, at: "2026-09-17T13:07:33Z" }
+generated: { by: agent/mcp, at: "2026-09-18T08:29:12Z" }
 status: stable
 sources:
   - resource: ../../docs/project/ROADMAP.md
@@ -43,3 +43,6 @@ The project progresses through 16 structured phases designed to take OKF Agent M
 The implementation phases build on the [architecture/layers](../architecture/layers.md), realize the [project/overview](../project/overview.md) vision, and enforce the lifecycle workflows defined in [convention/lifecycle](../convention/lifecycle.md).
 
 [^roadmap]: OKF Agent Memory Project Roadmap
+
+# Related Concepts
+- [Release Procedure & Distribution Runbook](../convention/release-procedure.md): Releases execute the milestones defined in the roadmap

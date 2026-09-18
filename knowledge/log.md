@@ -1,4 +1,7 @@
 ## 2026-09-18
+* **Update**: Linked `roadmap/milestones.md` to `convention/release-procedure.md` (Releases execute the milestones defined in the roadmap).
+* **Update**: Linked `convention/contributing.md` to `convention/release-procedure.md` (Release preparation, quality gates, and git tagging procedure).
+* **Creation**: Documented concept `convention/release-procedure.md` (Release Procedure & Distribution Runbook).
 * **Release**: Published version v0.4.1 — Strict MCP specification conformance with object outputSchema and structuredContent payload (OpenCode & Pi agent), atomic filesystem write operations, index broken link detection, bidirectional index drift validation, and crash consistency test suites.
 * **Update**: Updated concept `roadmap/milestones.md` adding Phase 16 (Strict MCP Conformance & Storage Hardening).
 * **Update**: Updated concept `convention/security-audit.md` reframing Google Jules continuous audit workflow to defensive QA and negative unit testing.
