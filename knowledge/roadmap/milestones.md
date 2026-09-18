@@ -15,7 +15,7 @@ sources:
 
 # Project Roadmap & Development Milestones
 
-The project progresses through 15 structured phases designed to take OKF Agent Memory from draft convention to a production-ready standard.[^roadmap]
+The project progresses through 16 structured phases designed to take OKF Agent Memory from draft convention to a production-ready standard.[^roadmap]
 
 ## Implementation Phases
 
@@ -36,6 +36,7 @@ The project progresses through 15 structured phases designed to take OKF Agent M
 | **Phase 13**| **DMAA & Agent Action Grammar** | **Completed** | AAG RFC specification, AST linter (`AAG-001`–`AAG-005`), token budget gates, multi-domain templates, and SSoT tool symlinks (`okf agents link`). |
 | **Phase 14**| **Empirical Benchmarking & DMAA Validation** | **Completed** | Pure Go benchmark runner (`okf-benchmark`), Layer 1 & 2 suites, empirical validation on local/cloud models, peer methodology guide, and CLI help hardening. |
 | **Phase 15**| **Zero-Knowledge Vault Sync & Memory Hub** | **Completed** | Client-side AES-256-GCM envelope crypto, Argon2id KDF, blind CAS protocol, atomic head concurrency control, 3-way reconcile engine, and CLI hub commands with Bearer auth. |
+| **Phase 16**| **Strict MCP Conformance & Storage Hardening** | **Completed** | Object `outputSchema` and `structuredContent` MCP specification conformance (OpenCode, Pi Agent), atomic filesystem writes, index broken link scanning, bidirectional drift validation, and crash consistency test suites. |
 
 ## Inter-Concept Connections
 

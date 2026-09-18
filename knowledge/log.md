@@ -1,3 +1,8 @@
+## 2026-09-18
+* **Release**: Published version v0.4.1 — Strict MCP specification conformance with object outputSchema and structuredContent payload (OpenCode & Pi agent), atomic filesystem write operations, index broken link detection, bidirectional index drift validation, and crash consistency test suites.
+* **Update**: Updated concept `roadmap/milestones.md` adding Phase 16 (Strict MCP Conformance & Storage Hardening).
+* **Update**: Updated concept `convention/security-audit.md` reframing Google Jules continuous audit workflow to defensive QA and negative unit testing.
+
 ## 2026-09-17
 * **Release**: Published version v0.4.0 — Zero-Knowledge Vault Synchronization, client-side AES-256-GCM envelope encryption, Argon2id KDF, CAS blind sync protocol, atomic head concurrency control, 3-way reconcile engine, and OKF Memory Hub CLI suite with Bearer token authentication.
 * **Update**: Updated concept `roadmap/milestones.md`.

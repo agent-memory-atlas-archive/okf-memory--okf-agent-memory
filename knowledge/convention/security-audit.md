@@ -15,7 +15,7 @@ To maintain the highest level of defensive assurance for `okf-agent-memory`, aut
 
 ## 1. Continuous Audit Protocol (Google Jules)
 
-Google Jules acts as an Adversarial Security Specialist targeting `pkg/okf` and `cmd/okf`:
+Google Jules acts as a Go Quality Assurance & Defensive Hardening Specialist targeting `pkg/okf` and `cmd/okf`:
 
 * **Target Branch**: Jules must branch off and open Pull Requests strictly against `develop`.
 * **Focus Areas**:
@@ -23,7 +23,7 @@ Google Jules acts as an Adversarial Security Specialist targeting `pkg/okf` and 
   - Symlink resolution and escape containment (CWE-59).
   - MCP tool call argument sanitization and server root confinement (`cmd/okf/mcp.go`).
   - Resource limits, parsing edge cases, and frontmatter smuggling.
-* **Adversarial Regression Tests**: Every finding must include minimal reproducible test cases in `pkg/okf/mutate_security_test.go` or `cmd/okf/mcp_test.go`.
+* **Defensive Regression Tests**: Every finding must include minimal reproducible negative unit test cases in `pkg/okf/mutate_security_test.go` or `cmd/okf/mcp_test.go` confirming boundary violations are rejected deterministically.
 
 ---
 
