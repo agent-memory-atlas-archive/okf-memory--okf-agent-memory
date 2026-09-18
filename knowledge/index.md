@@ -20,4 +20,3 @@ The persistent knowledge corpus for the `okf-agent-memory` project, structured a
 
 # Roadmap
 * [Project Roadmap & Development Milestones](roadmap/milestones.md) - Phased implementation roadmap from specification validation to Go library, CLI tooling, cross-agent testing, and zero-knowledge hub sync.
-* [--help](--help.md)

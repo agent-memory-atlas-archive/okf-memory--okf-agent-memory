@@ -3,6 +3,7 @@ package okf
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -254,6 +255,28 @@ func Validate(b *Bundle, opts ValidateOptions) *ValidationResult {
 					if !strings.Contains(normText(listingDesc), normText(concept.Description)) {
 						res.Warnings = append(res.Warnings, fmt.Sprintf("%s: listing for %s.md differs from concept description", idxPath, targetID))
 					}
+				}
+			}
+		}
+
+		// Check that each concept is listed in its immediate parent index.md
+		if len(b.Indexes) > 0 {
+			for _, c := range b.Concepts {
+				normConceptPath := filepath.ToSlash(c.Path)
+				dir := path.Dir(normConceptPath)
+				indexRel := "index.md"
+				if dir != "." {
+					indexRel = filepath.ToSlash(filepath.Join(dir, "index.md"))
+				}
+				idxContent, ok := b.Indexes[indexRel]
+				if !ok {
+					res.Warnings = append(res.Warnings, fmt.Sprintf("%s: parent index %s does not exist", c.Path, indexRel))
+					continue
+				}
+				targetFilename := filepath.Base(c.Path)
+				linkTarget := fmt.Sprintf("(%s)", targetFilename)
+				if !strings.Contains(idxContent, linkTarget) {
+					res.Warnings = append(res.Warnings, fmt.Sprintf("%s: concept is not listed in parent index %s", c.Path, indexRel))
 				}
 			}
 		}

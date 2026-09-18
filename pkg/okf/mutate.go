@@ -22,6 +22,43 @@ func titleCase(s string) string {
 	return string(r)
 }
 
+// atomicWriteFile writes data to a temporary file in the same directory as targetPath,
+// flushes it to disk, and atomically replaces targetPath using os.Rename.
+func atomicWriteFile(targetPath string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(targetPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
+	}
+
+	tmpFile, err := os.CreateTemp(dir, ".tmp-okf-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer func() {
+		_ = os.Remove(tmpPath)
+	}()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		_ = tmpFile.Close()
+		return fmt.Errorf("failed to write to temporary file: %w", err)
+	}
+	if err := tmpFile.Sync(); err != nil {
+		_ = tmpFile.Close()
+		return fmt.Errorf("failed to sync temporary file: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temporary file: %w", err)
+	}
+	if err := os.Chmod(tmpPath, perm); err != nil {
+		return fmt.Errorf("failed to set permissions on temporary file: %w", err)
+	}
+	if err := os.Rename(tmpPath, targetPath); err != nil {
+		return fmt.Errorf("failed to atomically replace %s: %w", targetPath, err)
+	}
+	return nil
+}
+
 // InitBundle initializes a new OKF v0.2 bundle with root index.md and log.md.
 func InitBundle(dir string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -31,7 +68,7 @@ func InitBundle(dir string) error {
 	rootIndex := filepath.Join(dir, "index.md")
 	if _, err := os.Stat(rootIndex); os.IsNotExist(err) {
 		indexContent := "---\nokf_version: \"0.2\"\n---\n\n# Knowledge Base\n\n"
-		if err := os.WriteFile(rootIndex, []byte(indexContent), 0o644); err != nil {
+		if err := atomicWriteFile(rootIndex, []byte(indexContent), 0o644); err != nil {
 			return fmt.Errorf("failed to write root index.md: %w", err)
 		}
 	}
@@ -40,7 +77,7 @@ func InitBundle(dir string) error {
 	if _, err := os.Stat(logFile); os.IsNotExist(err) {
 		today := time.Now().UTC().Format("2006-01-02")
 		logContent := fmt.Sprintf("## %s\n* **Creation**: Initialized OKF v0.2 knowledge bundle.\n", today)
-		if err := os.WriteFile(logFile, []byte(logContent), 0o644); err != nil {
+		if err := atomicWriteFile(logFile, []byte(logContent), 0o644); err != nil {
 			return fmt.Errorf("failed to write log.md: %w", err)
 		}
 	}
@@ -76,7 +113,7 @@ func AppendLogEntry(bundleDir, entryType, description string) error {
 	}
 
 	// #nosec G703 -- logPath is validated and contained within bundle root
-	return os.WriteFile(logPath, []byte(existingContent), 0o644)
+	return atomicWriteFile(logPath, []byte(existingContent), 0o644)
 }
 
 // ValidateConceptID verifies that a concept ID conforms to OKF naming conventions
@@ -203,7 +240,7 @@ func UpdateParentIndex(bundleDir string, c *Concept) error {
 	}
 
 	// #nosec G703 -- indexPath is verified within bundleDir
-	return os.WriteFile(indexPath, []byte(existingContent), 0o644)
+	return atomicWriteFile(indexPath, []byte(existingContent), 0o644)
 }
 
 // resolveInBundle joins relPath onto bundleDir and refuses any result that
@@ -341,7 +378,7 @@ func SaveConcept(bundleDir string, c *Concept, isNew, autoLog, autoIndex bool, a
 	}
 
 	raw := SerializeConcept(c)
-	if err := os.WriteFile(fullPath, []byte(raw), 0o644); err != nil {
+	if err := atomicWriteFile(fullPath, []byte(raw), 0o644); err != nil {
 		return fmt.Errorf("failed to write concept: %w", err)
 	}
 

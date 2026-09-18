@@ -323,6 +323,35 @@ func (b *Bundle) buildGraph() {
 		}
 	}
 
+	// Also check for broken links inside directory indexes (index.md)
+	for idxPath, idxContent := range b.Indexes {
+		body := StripFences(idxContent)
+		matches := linkRegex.FindAllStringSubmatch(body, -1)
+
+		for _, match := range matches {
+			href := match[1]
+			if strings.Contains(href, "://") {
+				continue // External URL
+			}
+
+			targetID := b.ResolveLink(idxPath, href)
+			targetRel := targetID + ".md"
+			targetBase := path.Base(targetRel)
+
+			if strings.EqualFold(targetBase, "index.md") || strings.EqualFold(targetRel, "log.md") || strings.EqualFold(targetRel, "AGENTS.md") {
+				continue // Reserved files in indexes are standard navigation
+			}
+
+			if _, exists := b.Concepts[targetID]; !exists {
+				b.BrokenLinks = append(b.BrokenLinks, BrokenLink{
+					SourceConcept: idxPath,
+					TargetHref:    href,
+					Reason:        "target concept does not exist",
+				})
+			}
+		}
+	}
+
 	// Compute orphans (degree 0 in concept graph when bundle has > 1 concept)
 	if len(b.Concepts) > 1 {
 		for id := range b.Concepts {
