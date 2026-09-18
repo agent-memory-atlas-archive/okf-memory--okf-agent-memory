@@ -4,6 +4,7 @@ Historical release notes for **OKF Agent Memory**.
 
 | Version | Release Date | Highlights |
 | :--- | :--- | :--- |
+| [**v0.4.1**](./v0.4.1.md) | 2026-09-18 | Strict MCP Conformance (OpenCode, Pi Agent), Crash Consistency, Atomic Writes, Index Broken Links, Bidirectional Drift |
 | [**v0.4.0**](./v0.4.0.md) | 2026-09-17 | Zero-Knowledge Vault Synchronization, Argon2id KDF, AES-256-GCM Envelope Encryption, 3-Way Reconcile Engine, OKF Hub CLI |
 | [**v0.3.1**](./v0.3.1.md) | 2026-09-16 | DMAA Benchmark Engine, CLI Subcommand Help Handlers, Pre-Flight Warmup, Mermaid Sanitizer, AAG Skill Alignment |
 | [**v0.3.0**](./v0.3.0.md) | 2026-09-15 | Agent Action Grammar (AAG) RFC & Linter, Dual-Memory Agent Architecture (DMAA), Multi-Domain Codex, SSoT Tool Symlinks |
