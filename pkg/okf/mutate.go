@@ -162,6 +162,16 @@ func ValidateConceptID(id string) error {
 		return fmt.Errorf("concept ID %q contains forbidden '..' traversal", id)
 	}
 
+	if len(parts) > MaxConceptDirectoryDepth {
+		return fmt.Errorf("concept ID %q exceeds maximum directory depth of %d", id, MaxConceptDirectoryDepth)
+	}
+
+	for _, part := range parts {
+		if part != "." && strings.HasPrefix(part, ".") {
+			return fmt.Errorf("concept ID %q cannot contain hidden directory or dot-file component %q", id, part)
+		}
+	}
+
 	// Clean path and ensure it does not escape
 	cleaned := filepath.Clean(strings.ReplaceAll(cleanID, "\\", "/"))
 	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {

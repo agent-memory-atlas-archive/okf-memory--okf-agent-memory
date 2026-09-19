@@ -741,7 +741,7 @@ func TestValidateConceptIDControlCharacters(t *testing.T) {
 // TestValidateConceptIDUnicodeHomoglyphsAndBiDi verifies rejection of zero-width/bidi chars while preserving international unicode.
 func TestValidateConceptIDUnicodeHomoglyphsAndBiDi(t *testing.T) {
 	rejected := []string{
-		"decisions/auth\u200Bpolicy",    // zero-width space
+		"decisions/auth\u200Bpolicy",   // zero-width space
 		"facts/key\u200Cvalue",         // zero-width non-joiner
 		"decisions/\uFEFFbom",          // zero-width no-break space (BOM)
 		"decisions/test\u202Ereversed", // BiDi override RLO
@@ -756,10 +756,10 @@ func TestValidateConceptIDUnicodeHomoglyphsAndBiDi(t *testing.T) {
 	}
 
 	allowed := []string{
-		"decisions/архитектура",     // Cyrillic
-		"facts/配置-数据库",          // Chinese
+		"decisions/архитектура",      // Cyrillic
+		"facts/配置-数据库",               // Chinese
 		"runbooks/überblick-münchen", // German umlauts
-		"tables/ユーザー設定",        // Japanese
+		"tables/ユーザー設定",              // Japanese
 	}
 
 	for _, id := range allowed {
@@ -906,5 +906,32 @@ func TestFrontmatterSmugglingInBody(t *testing.T) {
 	}
 	if err := SaveConcept(bundleDir, validConcept, true, false, false, "test"); err != nil {
 		t.Errorf("Expected SaveConcept to accept standard horizontal rule, got: %v", err)
+	}
+}
+
+func TestValidateConceptIDDirectoryDepthAndHiddenFiles(t *testing.T) {
+	// Exceeds MaxConceptDirectoryDepth (8)
+	deepID := "1/2/3/4/5/6/7/8/9"
+	if err := ValidateConceptID(deepID); err == nil {
+		t.Errorf("ValidateConceptID(%q) expected error for exceeding max directory depth, got nil", deepID)
+	}
+
+	// Within MaxConceptDirectoryDepth (8)
+	validDepthID := "1/2/3/4/5/6/7/8"
+	if err := ValidateConceptID(validDepthID); err != nil {
+		t.Errorf("ValidateConceptID(%q) expected valid depth, got error: %v", validDepthID, err)
+	}
+
+	// Hidden dot-files/directories must be rejected
+	hiddenCases := []string{
+		".hidden/concept",
+		"decisions/.secret",
+		".git/config",
+		"sub/.env/keys",
+	}
+	for _, id := range hiddenCases {
+		if err := ValidateConceptID(id); err == nil {
+			t.Errorf("ValidateConceptID(%q) expected error for hidden/dotfile component, got nil", id)
+		}
 	}
 }
