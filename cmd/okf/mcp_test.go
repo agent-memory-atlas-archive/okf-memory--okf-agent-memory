@@ -1019,3 +1019,35 @@ func TestMCPUpdateWithInvalidArguments(t *testing.T) {
 		t.Errorf("Expected Description to be empty, got: %s", updated.Description)
 	}
 }
+
+func TestMCPBundle_ArgumentValidation(t *testing.T) {
+	tmpDir := t.TempDir()
+	bundleDir := filepath.Join(tmpDir, "bundle")
+	_ = os.MkdirAll(bundleDir, 0o755)
+	_ = os.WriteFile(filepath.Join(bundleDir, "index.md"), []byte("---\nokf_version: \"0.2\"\n---\n# Bundle\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(bundleDir, "log.md"), []byte("# Log\n"), 0o644)
+
+	hugeBundle := strings.Repeat("b", 1001)
+
+	inputs := []string{
+		// 1. Bundle argument exceeds 1000 bytes
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"okf_search","arguments":{"bundle":"` + hugeBundle + `","query":"test"}}}`,
+		// 2. Bundle argument is not a string
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"okf_search","arguments":{"bundle":12345,"query":"test"}}}`,
+	}
+
+	responses := runMCPConversation(t, bundleDir, inputs)
+	if len(responses) != 2 {
+		t.Fatalf("Expected 2 responses, got %d", len(responses))
+	}
+
+	for i, r := range responses {
+		rMap, ok := r.Result.(map[string]any)
+		if !ok {
+			t.Fatalf("Response %d result type invalid: %T", i+1, r.Result)
+		}
+		if isErr, _ := rMap["isError"].(bool); !isErr {
+			t.Errorf("Expected response %d to return isError: true, got: %+v", i+1, rMap)
+		}
+	}
+}

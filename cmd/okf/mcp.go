@@ -233,10 +233,11 @@ func getMCPTools() []map[string]any {
 }
 
 func (s *mcpServer) resolveBundleDir(callParams mcpToolCallParams) (string, error) {
-	var target string
-	if bArg, ok := callParams.Arguments["bundle"].(string); ok {
-		target = strings.TrimSpace(bArg)
+	target, err := getStringArg(callParams.Arguments, "bundle", 1000, false)
+	if err != nil {
+		return "", err
 	}
+	target = strings.TrimSpace(target)
 
 	if target == "" {
 		if s.bundleDir != "" && s.bundleDir != "." {
