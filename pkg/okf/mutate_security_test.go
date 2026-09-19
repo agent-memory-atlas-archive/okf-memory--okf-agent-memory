@@ -737,6 +737,37 @@ func TestValidateConceptIDControlCharacters(t *testing.T) {
 	}
 }
 
+// TestValidateConceptIDUnicodeHomoglyphsAndBiDi verifies rejection of zero-width/bidi chars while preserving international unicode.
+func TestValidateConceptIDUnicodeHomoglyphsAndBiDi(t *testing.T) {
+	rejected := []string{
+		"decisions/auth\u200Bpolicy",    // zero-width space
+		"facts/key\u200Cvalue",         // zero-width non-joiner
+		"decisions/\uFEFFbom",          // zero-width no-break space (BOM)
+		"decisions/test\u202Ereversed", // BiDi override RLO
+		"decisions/test\u2066isolate",  // BiDi isolate LRI
+		"decisions/\u00ADsoft-hyphen",  // soft hyphen (Cf)
+	}
+
+	for _, id := range rejected {
+		if err := ValidateConceptID(id); err == nil {
+			t.Errorf("ValidateConceptID(%q) expected error for invisible/bidi char, got nil", id)
+		}
+	}
+
+	allowed := []string{
+		"decisions/архитектура",     // Cyrillic
+		"facts/配置-数据库",          // Chinese
+		"runbooks/überblick-münchen", // German umlauts
+		"tables/ユーザー設定",        // Japanese
+	}
+
+	for _, id := range allowed {
+		if err := ValidateConceptID(id); err != nil {
+			t.Errorf("ValidateConceptID(%q) expected valid international ID, got error: %v", id, err)
+		}
+	}
+}
+
 // TestSearchResourceLimits verifies that Search enforces maximum limit caps and truncates oversized query strings.
 func TestSearchResourceLimits(t *testing.T) {
 	bundleDir := t.TempDir()

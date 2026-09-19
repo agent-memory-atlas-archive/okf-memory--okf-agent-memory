@@ -124,8 +124,19 @@ func ValidateConceptID(id string) error {
 		return fmt.Errorf("concept ID cannot be empty")
 	}
 
-	if strings.ContainsAny(trimmed, "\x00\r\n\t") {
-		return fmt.Errorf("concept ID %q contains forbidden control characters", id)
+	for _, r := range trimmed {
+		if unicode.IsControl(r) {
+			return fmt.Errorf("concept ID %q contains forbidden control character U+%04X", id, r)
+		}
+		if unicode.In(r, unicode.Cf) {
+			return fmt.Errorf("concept ID %q contains forbidden format/invisible character U+%04X", id, r)
+		}
+		if (r >= 0x202A && r <= 0x202E) || (r >= 0x2066 && r <= 0x2069) {
+			return fmt.Errorf("concept ID %q contains forbidden bidirectional override character U+%04X", id, r)
+		}
+		if !unicode.IsPrint(r) {
+			return fmt.Errorf("concept ID %q contains non-printable character U+%04X", id, r)
+		}
 	}
 
 	cleanID := strings.TrimSuffix(trimmed, ".md")
