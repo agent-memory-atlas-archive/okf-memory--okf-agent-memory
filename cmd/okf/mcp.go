@@ -248,7 +248,7 @@ func (s *mcpServer) resolveBundleDir(callParams mcpToolCallParams) (string, erro
 		}
 	}
 
-	normTarget := filepath.ToSlash(target)
+	normTarget := strings.ReplaceAll(target, "\\", "/")
 
 	// Confinement check: if s.rootDir is configured, target must stay within s.rootDir
 	if s.rootDir != "" {

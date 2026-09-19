@@ -152,14 +152,14 @@ func ValidateConceptID(id string) error {
 	}
 
 	// Clean path and ensure it does not escape
-	cleaned := filepath.Clean(cleanID)
+	cleaned := filepath.Clean(strings.ReplaceAll(cleanID, "\\", "/"))
 	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
 		return fmt.Errorf("concept ID %q escapes bundle directory", id)
 	}
 
 	// Check for reserved filenames (index.md anywhere, root log.md, root AGENTS.md)
 	base := filepath.Base(cleaned)
-	normClean := filepath.ToSlash(cleaned)
+	normClean := strings.ReplaceAll(cleaned, "\\", "/")
 	if strings.EqualFold(base, "index") || strings.EqualFold(base, "index.md") ||
 		strings.EqualFold(normClean, "log") || strings.EqualFold(normClean, "log.md") ||
 		strings.EqualFold(normClean, "AGENTS") || strings.EqualFold(normClean, "AGENTS.md") {
@@ -253,7 +253,7 @@ func resolveInBundle(bundleDir, relPath string) (string, error) {
 
 	// Normalize backslashes to forward slashes before calling filepath.Clean
 	// to prevent Windows-style backslash traversal vectors (e.g. "..\..\file") on POSIX OS.
-	normRel := filepath.ToSlash(relPath)
+	normRel := strings.ReplaceAll(relPath, "\\", "/")
 	cleanRel := filepath.Clean(normRel)
 	full := filepath.Join(absBundle, cleanRel)
 	rel, err := filepath.Rel(absBundle, full)
