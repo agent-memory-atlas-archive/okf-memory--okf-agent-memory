@@ -1051,3 +1051,41 @@ func TestMCPBundle_ArgumentValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestMCPOversizedLineRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	bundleDir := filepath.Join(tmpDir, "bundle")
+	_ = os.MkdirAll(bundleDir, 0o755)
+	_ = os.WriteFile(filepath.Join(bundleDir, "index.md"), []byte("---\nokf_version: \"0.2\"\n---\n# Bundle\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(bundleDir, "log.md"), []byte("# Log\n"), 0o644)
+
+	// Construct an oversized line (> 4MB)
+	oversizedLine := strings.Repeat("x", maxMCPLineLength+100)
+
+	inputs := []string{
+		oversizedLine,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`,
+	}
+
+	responses := runMCPConversation(t, bundleDir, inputs)
+	if len(responses) != 2 {
+		t.Fatalf("Expected 2 responses, got %d", len(responses))
+	}
+
+	// First response must be parse error (-32700)
+	if responses[0].Error == nil || responses[0].Error.Code != -32700 {
+		t.Errorf("Expected error code -32700 for oversized line, got: %+v", responses[0].Error)
+	}
+	if !strings.Contains(responses[0].Error.Message, "exceeds 4MB") {
+		t.Errorf("Expected error message to mention 4MB, got: %s", responses[0].Error.Message)
+	}
+
+	// Second response must succeed normally (stream was recovered)
+	if responses[1].Error != nil {
+		t.Errorf("Expected second response to succeed, got error: %+v", responses[1].Error)
+	}
+	resMap, ok := responses[1].Result.(map[string]any)
+	if !ok || resMap["tools"] == nil {
+		t.Errorf("Expected tools list in second response, got: %+v", responses[1].Result)
+	}
+}

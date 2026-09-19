@@ -50,6 +50,32 @@ func RunMCPServer(bundleDir string) error {
 	return RunMCPServerIO(bundleDir, os.Stdin, os.Stdout)
 }
 
+const maxMCPLineLength = 4 * 1024 * 1024 // 4MB maximum JSON-RPC message size
+
+func readBoundedLine(r *bufio.Reader, maxLen int) ([]byte, bool, error) {
+	var line []byte
+	for {
+		chunk, isPrefix, err := r.ReadLine()
+		if err != nil {
+			if err == io.EOF && len(line) > 0 {
+				return line, false, nil
+			}
+			return nil, false, err
+		}
+		line = append(line, chunk...)
+		if len(line) > maxLen {
+			for isPrefix && err == nil {
+				_, isPrefix, err = r.ReadLine()
+			}
+			return nil, true, nil
+		}
+		if !isPrefix {
+			break
+		}
+	}
+	return line, false, nil
+}
+
 // RunMCPServerIO runs the MCP server on the provided reader and writer.
 func RunMCPServerIO(bundleDir string, in io.Reader, out io.Writer) error {
 	rootDir := os.Getenv("OKF_MCP_ROOT")
@@ -81,12 +107,17 @@ func RunMCPServerIO(bundleDir string, in io.Reader, out io.Writer) error {
 
 	reader := bufio.NewReader(in)
 	for {
-		line, err := reader.ReadBytes('\n')
+		line, tooLarge, err := readBoundedLine(reader, maxMCPLineLength)
 		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
 			return err
+		}
+		if tooLarge {
+			rawNull := json.RawMessage("null")
+			s.sendError(&rawNull, -32700, "Parse error: request exceeds 4MB maximum size")
+			continue
 		}
 
 		trimmed := strings.TrimSpace(string(line))
@@ -95,7 +126,7 @@ func RunMCPServerIO(bundleDir string, in io.Reader, out io.Writer) error {
 		}
 
 		var req jsonRPCRequest
-		if err := json.Unmarshal([]byte(trimmed), &req); err != nil {
+		if err := json.Unmarshal(line, &req); err != nil {
 			rawNull := json.RawMessage("null")
 			s.sendError(&rawNull, -32700, "Parse error")
 			continue
