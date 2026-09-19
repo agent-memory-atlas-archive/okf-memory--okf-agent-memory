@@ -298,7 +298,7 @@ func (s *mcpServer) resolveBundleDir(callParams mcpToolCallParams) (string, erro
 		realTarget := filepath.Join(parts...)
 
 		rel, err := filepath.Rel(absRoot, realTarget)
-		normRel := filepath.ToSlash(rel)
+		normRel := strings.ReplaceAll(rel, "\\", "/")
 		if err != nil || rel == ".." || normRel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || strings.HasPrefix(normRel, "../") {
 			return "", fmt.Errorf("path traversal denied: bundle directory %q escapes server root %q", target, s.rootDir)
 		}
@@ -307,6 +307,24 @@ func (s *mcpServer) resolveBundleDir(callParams mcpToolCallParams) (string, erro
 	}
 
 	return target, nil
+}
+
+func getStringArg(args map[string]any, key string, maxLen int, required bool) (string, error) {
+	val, ok := args[key]
+	if !ok || val == nil {
+		if required {
+			return "", fmt.Errorf("missing required argument '%s'", key)
+		}
+		return "", nil
+	}
+	strVal, ok := val.(string)
+	if !ok {
+		return "", fmt.Errorf("argument '%s' must be a string", key)
+	}
+	if len(strVal) > maxLen {
+		return "", fmt.Errorf("argument '%s' exceeds maximum length of %d bytes", key, maxLen)
+	}
+	return strVal, nil
 }
 
 func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
@@ -334,11 +352,23 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 
 	switch callParams.Name {
 	case "okf_search":
-		query, _ := callParams.Arguments["query"].(string)
-		forPath, _ := callParams.Arguments["for_path"].(string)
+		query, err := getStringArg(callParams.Arguments, "query", 10000, false)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
+		forPath, err := getStringArg(callParams.Arguments, "for_path", 1000, false)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
 		limit := 10
-		if l, ok := callParams.Arguments["limit"].(float64); ok && l > 0 {
-			limit = int(l)
+		if l, ok := callParams.Arguments["limit"].(float64); ok {
+			if l > 0 && l <= 100 {
+				limit = int(l)
+			} else if l > 100 {
+				limit = 100
+			}
 		}
 		var results []okf.SearchResult
 		if forPath != "" {
@@ -354,7 +384,11 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 		s.sendToolResult(req.ID, string(resJSON), envelope, false)
 
 	case "okf_show":
-		conceptID, _ := callParams.Arguments["concept_id"].(string)
+		conceptID, err := getStringArg(callParams.Arguments, "concept_id", 1000, true)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
 		conceptID = strings.TrimSpace(conceptID)
 		if err := okf.ValidateConceptID(conceptID); err != nil {
 			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), nil, true)
@@ -398,23 +432,52 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 		s.sendToolResult(req.ID, string(resJSON), res, false)
 
 	case "okf_create":
-		conceptID, _ := callParams.Arguments["concept_id"].(string)
+		conceptID, err := getStringArg(callParams.Arguments, "concept_id", 1000, true)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
 		conceptID = strings.TrimSpace(conceptID)
 		if err := okf.ValidateConceptID(conceptID); err != nil {
 			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), nil, true)
 			return
 		}
-		conceptType, _ := callParams.Arguments["type"].(string)
-		title, _ := callParams.Arguments["title"].(string)
-		desc, _ := callParams.Arguments["description"].(string)
-		body, _ := callParams.Arguments["body"].(string)
+		conceptType, err := getStringArg(callParams.Arguments, "type", 1000, true)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
+		conceptType = strings.TrimSpace(conceptType)
+		if conceptType == "" {
+			s.sendToolResult(req.ID, "Invalid type: concept type cannot be empty or whitespace", nil, true)
+			return
+		}
+		title, err := getStringArg(callParams.Arguments, "title", 1000, true)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
+		if strings.TrimSpace(title) == "" {
+			s.sendToolResult(req.ID, "Invalid title: concept title cannot be empty or whitespace", nil, true)
+			return
+		}
+		desc, err := getStringArg(callParams.Arguments, "description", 1000, false)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
+		body, err := getStringArg(callParams.Arguments, "body", 1024*1024, false)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
 
 		cleanID := strings.TrimSuffix(conceptID, ".md")
 		c := &okf.Concept{
 			ID:          cleanID,
 			Path:        cleanID + ".md",
 			Type:        conceptType,
-			Title:       title,
+			Title:       strings.TrimSpace(title),
 			Description: desc,
 			Body:        body,
 		}
@@ -435,7 +498,11 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 		s.sendToolResult(req.ID, msg, structured, false)
 
 	case "okf_update":
-		conceptID, _ := callParams.Arguments["concept_id"].(string)
+		conceptID, err := getStringArg(callParams.Arguments, "concept_id", 1000, true)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
 		conceptID = strings.TrimSpace(conceptID)
 		if err := okf.ValidateConceptID(conceptID); err != nil {
 			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), nil, true)
@@ -448,20 +515,44 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 			return
 		}
 
-		if title, ok := callParams.Arguments["title"].(string); ok {
-			c.Title = title
+		// Work on a copy to prevent in-memory concept corruption if validation or disk write fails
+		updated := *c
+
+		if _, exists := callParams.Arguments["title"]; exists {
+			title, err := getStringArg(callParams.Arguments, "title", 1000, true)
+			if err != nil {
+				s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+				return
+			}
+			if strings.TrimSpace(title) == "" {
+				s.sendToolResult(req.ID, "Invalid title: concept title cannot be empty or whitespace", nil, true)
+				return
+			}
+			updated.Title = strings.TrimSpace(title)
 		}
-		if desc, ok := callParams.Arguments["description"].(string); ok {
-			c.Description = desc
+		if _, exists := callParams.Arguments["description"]; exists {
+			desc, err := getStringArg(callParams.Arguments, "description", 1000, false)
+			if err != nil {
+				s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+				return
+			}
+			updated.Description = desc
 		}
-		if body, ok := callParams.Arguments["body"].(string); ok {
-			c.Body = body
+		if _, exists := callParams.Arguments["body"]; exists {
+			body, err := getStringArg(callParams.Arguments, "body", 1024*1024, false)
+			if err != nil {
+				s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+				return
+			}
+			updated.Body = body
 		}
 
-		if err := okf.SaveConcept(bundleDir, c, false, true, true, "agent/mcp"); err != nil {
+		if err := okf.SaveConcept(bundleDir, &updated, false, true, true, "agent/mcp"); err != nil {
 			s.sendToolResult(req.ID, fmt.Sprintf("Failed to update concept: %v", err), nil, true)
 			return
 		}
+
+		*c = updated
 
 		msg := fmt.Sprintf("Successfully updated concept %s in %s", c.Path, bundleDir)
 		structured := map[string]any{
@@ -474,9 +565,21 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 		s.sendToolResult(req.ID, msg, structured, false)
 
 	case "okf_relate":
-		srcID, _ := callParams.Arguments["source_id"].(string)
-		tgtID, _ := callParams.Arguments["target_id"].(string)
-		desc, _ := callParams.Arguments["description"].(string)
+		srcID, err := getStringArg(callParams.Arguments, "source_id", 1000, true)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
+		tgtID, err := getStringArg(callParams.Arguments, "target_id", 1000, true)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
+		desc, err := getStringArg(callParams.Arguments, "description", 1000, false)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
 
 		if err := okf.RelateConcepts(bundleDir, srcID, tgtID, desc, "agent/mcp"); err != nil {
 			s.sendToolResult(req.ID, fmt.Sprintf("Failed to relate concepts: %v", err), nil, true)

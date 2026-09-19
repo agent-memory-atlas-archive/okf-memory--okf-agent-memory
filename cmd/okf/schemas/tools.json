@@ -293,6 +293,7 @@
         },
         "title": {
           "type": "string",
+          "minLength": 1,
           "description": "Human-readable title."
         },
         "description": {
@@ -355,6 +356,7 @@
         },
         "title": {
           "type": "string",
+          "minLength": 1,
           "description": "Updated human-readable title."
         },
         "description": {
