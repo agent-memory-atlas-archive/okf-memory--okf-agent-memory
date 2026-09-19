@@ -44,14 +44,14 @@ Update or create all files in the canonical release inventory:
   - Feature details & Breaking changes
   - Storage / Conformance hardening
   - Developer experience & CI updates
-  - Community & Special Thanks (crediting contributors by handle and issue/PR)
+  - Community & Special Thanks (crediting human contributors by handle and issue/PR; never credit dedicated AI agent accounts or bots)
   - Pre-built Binaries link
   - `### Full Changelog`: Link comparison `https://github.com/okf-memory/okf-agent-memory/compare/v<PREV>...v<CURR>`
 - [ ] `docs/releases/README.md`: Add row with version, date, and core highlights
 - [ ] `knowledge/log.md`: Record release entry under today's date
 - [ ] `knowledge/roadmap/milestones.md`: Update milestone deliverables and current phase status
-- [ ] `CONTRIBUTORS.md`: Credit all users who reported bugs, provided test environments, or opened PRs
-- [ ] `README.md`: Update supported version range (e.g. `(v0.1.0 – v0.4.1)`)
+- [ ] `CONTRIBUTORS.md`: Credit human contributors only (humans who author PRs using AI agents are credited normally; never credit dedicated bot/agent accounts like Jules or Claude Bot)
+- [ ] `README.md`: Update supported version range (e.g. `(v0.1.0 – v0.4.2)`)
 
 ### Phase 3: Git Flow & Signed Tagging
 1. Stage and commit all release preparation files on `develop`:

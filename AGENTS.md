@@ -9,9 +9,10 @@
 
 <!-- BEGIN OKF AGENT MEMORY -->
 ## 1. Behavioral Invariants & Constraints (RFC 2119)
-- MUST execute `okf_search(query=keywords, limit=3)` before proposing architecture, new dependencies, or substantial code changes.
-- NEVER scan `knowledge/` via `list_dir`, `grep_search`, `find`, or raw file readers.
+- MUST execute `okf_search(query=keywords, limit=3)` before proposing architecture, dependencies, or changes.
+- NEVER scan `knowledge/` via `list_dir`, `grep_search`, `find`, or raw readers.
 - NEVER forge human verification (`verified:` is human-only; declare `generated: { by: "<actor>", at: "<iso-time>" }`).
+- NEVER credit dedicated agent accounts in CONTRIBUTORS or release notes (human-only).
 - PREFER native `okf_*` MCP tools OVER CLI fallback commands.
 
 ## 2. Guard Clauses & Scope Governance

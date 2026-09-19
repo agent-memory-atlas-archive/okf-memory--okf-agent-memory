@@ -1,3 +1,7 @@
+## 2026-09-19
+* **Release**: Published version v0.4.2 — MCP security hardening, argument boundary integrity and DoS length capping (`getStringArg`), 4MB stream-limiting stdin reader to prevent OOM attacks, copy-on-write concept update cache integrity, Unicode zero-width/BiDi Trojan Source protection with international character preservation, concept body frontmatter smuggling defense, directory nesting depth caps (`MaxConceptDirectoryDepth = 8`), and universal cross-platform backslash traversal sanitation.
+* **Update**: Updated concept `roadmap/milestones.md` adding Phase 17 (MCP Boundary Integrity & Security Hardening).
+
 ## 2026-09-18
 * **Update**: Linked `roadmap/milestones.md` to `convention/release-procedure.md` (Releases execute the milestones defined in the roadmap).
 * **Update**: Linked `convention/contributing.md` to `convention/release-procedure.md` (Release preparation, quality gates, and git tagging procedure).
