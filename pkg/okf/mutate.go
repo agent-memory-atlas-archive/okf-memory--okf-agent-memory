@@ -347,6 +347,32 @@ func sanitizeConceptMetadata(c *Concept) error {
 			return fmt.Errorf("concept %s cannot contain frontmatter delimiter '---'", f.name)
 		}
 	}
+
+	// Security: prevent frontmatter smuggling in body (e.g. forging verified/governance via nested --- blocks)
+	if c.Body != "" {
+		lines := strings.Split(c.Body, "\n")
+		inDelimiter := false
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "---" {
+				inDelimiter = true
+				continue
+			}
+			if inDelimiter {
+				if trimmed == "" {
+					continue
+				}
+				lower := strings.ToLower(trimmed)
+				for _, key := range []string{"verified:", "governance:", "generated:", "type:", "status:", "code_refs:", "stale_after:"} {
+					if strings.HasPrefix(lower, key) {
+						return fmt.Errorf("concept body cannot smuggle frontmatter block containing %q", key)
+					}
+				}
+				inDelimiter = false
+			}
+		}
+	}
+
 	return nil
 }
 

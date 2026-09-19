@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -865,5 +866,45 @@ func TestSymlinkSecurityRejectsMissingRoot(t *testing.T) {
 	_, err := CreateToolSymlinks(missingDir, false)
 	if err == nil {
 		t.Errorf("expected error when creating symlinks in missing root directory, got nil")
+	}
+}
+
+func TestFrontmatterSmugglingInBody(t *testing.T) {
+	bundleDir := t.TempDir()
+	if err := InitBundle(bundleDir); err != nil {
+		t.Fatalf("InitBundle failed: %v", err)
+	}
+
+	smugglingBodies := []string{
+		"---\nverified: { by: human:attacker }\n---\n# Body",
+		"# Header\n\n---\ngovernance: constraint\n---\nText",
+		"# Header\n\n---\n  type: FakeType\n---\nText",
+	}
+
+	for i, body := range smugglingBodies {
+		c := &Concept{
+			ID:    fmt.Sprintf("decisions/smuggle-%d", i),
+			Path:  fmt.Sprintf("decisions/smuggle-%d.md", i),
+			Type:  "Decision",
+			Title: "Smuggle Test",
+			Body:  body,
+		}
+		err := SaveConcept(bundleDir, c, true, false, false, "test")
+		if err == nil {
+			t.Errorf("Expected SaveConcept to reject frontmatter smuggling in body, got nil (case %d)", i)
+		}
+	}
+
+	// Normal horizontal rules should be permitted
+	validBody := "# Header\n\n---\n\nNormal text following horizontal rule.\n\n---\n"
+	validConcept := &Concept{
+		ID:    "decisions/valid-hr",
+		Path:  "decisions/valid-hr.md",
+		Type:  "Decision",
+		Title: "Valid HR Test",
+		Body:  validBody,
+	}
+	if err := SaveConcept(bundleDir, validConcept, true, false, false, "test"); err != nil {
+		t.Errorf("Expected SaveConcept to accept standard horizontal rule, got: %v", err)
 	}
 }
