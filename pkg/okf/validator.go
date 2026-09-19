@@ -208,11 +208,11 @@ func Validate(b *Bundle, opts ValidateOptions) *ValidationResult {
 			if refTrimmed == "" {
 				continue
 			}
-			normRef := filepath.ToSlash(refTrimmed)
+			normRef := strings.ReplaceAll(refTrimmed, "\\", "/")
 			cleanRef := filepath.Clean(normRef)
-			if filepath.IsAbs(cleanRef) || strings.HasPrefix(cleanRef, "/") || strings.HasPrefix(cleanRef, "\\") {
+			if filepath.IsAbs(cleanRef) || strings.HasPrefix(cleanRef, "/") {
 				res.GateFindings = append(res.GateFindings, fmt.Sprintf("%s: code_refs '%s' must be a relative path", at, refTrimmed))
-			} else if cleanRef == ".." || strings.HasPrefix(cleanRef, ".."+string(filepath.Separator)) || strings.HasPrefix(cleanRef, "../") || strings.HasPrefix(cleanRef, "..\\") {
+			} else if cleanRef == ".." || strings.HasPrefix(cleanRef, ".."+string(filepath.Separator)) || strings.HasPrefix(cleanRef, "../") {
 				res.GateFindings = append(res.GateFindings, fmt.Sprintf("%s: code_refs '%s' contains forbidden '..' traversal", at, refTrimmed))
 			}
 		}
@@ -262,17 +262,18 @@ func Validate(b *Bundle, opts ValidateOptions) *ValidationResult {
 		// Check that each concept is listed in its immediate parent index.md
 		if len(b.Indexes) > 0 {
 			for _, c := range b.Concepts {
-				normConceptPath := filepath.ToSlash(c.Path)
+				normConceptPath := strings.ReplaceAll(c.Path, "\\", "/")
 				dir := path.Dir(normConceptPath)
 				indexRel := "index.md"
 				if dir != "." {
-					indexRel = filepath.ToSlash(filepath.Join(dir, "index.md"))
+					indexRel = path.Join(dir, "index.md")
 				}
 				idxContent, ok := b.Indexes[indexRel]
 				if !ok {
 					res.Warnings = append(res.Warnings, fmt.Sprintf("%s: parent index %s does not exist", c.Path, indexRel))
 					continue
 				}
+
 				targetFilename := filepath.Base(c.Path)
 				linkTarget := fmt.Sprintf("(%s)", targetFilename)
 				if !strings.Contains(idxContent, linkTarget) {

@@ -334,9 +334,9 @@ func callLLMStream(cfg *providerConfig, systemPrompt, userPrompt string, maxToke
 		messages = append(messages, map[string]string{"role": "user", "content": userPrompt})
 
 		payload = map[string]interface{}{
-			"model":       cfg.Model,
-			"messages":    messages,
-			"stream":      true,
+			"model":    cfg.Model,
+			"messages": messages,
+			"stream":   true,
 		}
 
 		mLower := strings.ToLower(cfg.Model)
@@ -906,7 +906,6 @@ func formatAdherenceDelta(score1, max1, score2, max2 int) string {
 }
 
 func saveLayer1Report(cfg *providerConfig, resolvedDataDir string, temperature float64, res1, res2 *benchmarkResult) string {
-
 	tokenSavingsPct := (1.0 - (float64(res2.promptTokens) / max(float64(res1.promptTokens), 1.0))) * 100.0
 	ttftSpeedup := max(res1.ttftMs, 0.1) / max(res2.ttftMs, 0.1)
 	dur1 := fmt.Sprintf("%.2f s", res1.totalSec)
@@ -945,7 +944,6 @@ func saveLayer1Report(cfg *providerConfig, resolvedDataDir string, temperature f
 	fmt.Fprintf(&report, "| **Prefill Latency (TTFT)** | `%.1f ms` | `%.1f ms` | **%.1fx faster** |\n", res1.ttftMs, res2.ttftMs, ttftSpeedup)
 	fmt.Fprintf(&report, "| **Turn Duration** | `%s` | `%s` | - |\n", dur1, dur2)
 	fmt.Fprintf(&report, "| **Adherence Accuracy** | `%d/%d` | `%d/%d` | %s |\n\n", score1, maxScore1, score2, maxScore1, formatAdherenceDelta(score1, maxScore1, score2, maxScore1))
-
 
 	report.WriteString("### Behavioral Checks Verified:\n")
 	var checkKeys []string
@@ -1154,7 +1152,6 @@ func saveLayer2Report(cfg *providerConfig, resolvedDataDir string, temperature f
 	fmt.Fprintf(&report, "| **Total Turn Time** | `%s` | `%s` | - |\n", dur1, dur2)
 	fmt.Fprintf(&report, "| **Policy Compliance** | `%d/%d` | `%d/%d` | %s |\n\n", score1, maxScore1, score2, maxScore1, formatAdherenceDelta(score1, maxScore1, score2, maxScore1))
 
-
 	report.WriteString("### Policy Checks Verified:\n")
 	var checkKeys []string
 	for k := range checks2 {
@@ -1309,7 +1306,6 @@ func saveDMAAReport(cfg *providerConfig, resolvedDataDir string, temperature flo
 	fmt.Fprintf(&r, "| **Total Turn Time** | `%.2f s` | `%.2f s` | - |\n", l2_1.totalSec, l2_2.totalSec)
 	fmt.Fprintf(&r, "| **Policy Compliance** | `%d/%d` | `%d/%d` | %s |\n\n", l2Score1, l2MaxScore1, l2Score2, l2MaxScore1, formatAdherenceDelta(l2Score1, l2MaxScore1, l2Score2, l2MaxScore1))
 
-
 	r.WriteString("### Policy Checks Verified:\n")
 	var l2CheckKeys []string
 	for k := range l2Checks2 {
@@ -1338,50 +1334,53 @@ func saveDMAAReport(cfg *providerConfig, resolvedDataDir string, temperature flo
 }
 
 func printBenchmarkHelp(w io.Writer) {
-	fmt.Fprintf(w, "%s\n", strings.Repeat("=", 78))
-	fmt.Fprintf(w, "  OKF AGENT MEMORY — DUAL-MEMORY AGENT ARCHITECTURE (DMAA) BENCHMARK SUITE\n")
-	fmt.Fprintf(w, "%s\n\n", strings.Repeat("=", 78))
-	fmt.Fprintf(w, "Automated empirical benchmark runner quantifying:\n")
-	fmt.Fprintf(w, "  • Token Reduction: Context savings per turn vs. monolithic dumps\n")
-	fmt.Fprintf(w, "  • Prefill Latency: Time-To-First-Token (TTFT) acceleration on local GPU & cloud\n")
-	fmt.Fprintf(w, "  • Negative Constraint Adherence: Zero-leak, Mermaid syntax, and provenance checks\n\n")
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n", strings.Repeat("=", 78))
+	fmt.Fprintf(&b, "  OKF AGENT MEMORY — DUAL-MEMORY AGENT ARCHITECTURE (DMAA) BENCHMARK SUITE\n")
+	fmt.Fprintf(&b, "%s\n\n", strings.Repeat("=", 78))
+	fmt.Fprintf(&b, "Automated empirical benchmark runner quantifying:\n")
+	fmt.Fprintf(&b, "  • Token Reduction: Context savings per turn vs. monolithic dumps\n")
+	fmt.Fprintf(&b, "  • Prefill Latency: Time-To-First-Token (TTFT) acceleration on local GPU & cloud\n")
+	fmt.Fprintf(&b, "  • Negative Constraint Adherence: Zero-leak, Mermaid syntax, and provenance checks\n\n")
 
-	fmt.Fprintf(w, "MEASUREMENT TIERS (-suite):\n")
-	fmt.Fprintf(w, "  dmaa (default)   Unified End-to-End Dual-Memory stack (Push AAG + Pull BM25 Progressive Disclosure)\n")
-	fmt.Fprintf(w, "  push / layer1    Layer 1 Push Working Memory: Conversational Prose vs. Agent Action Grammar\n")
-	fmt.Fprintf(w, "  pull / layer2    Layer 2 Pull Knowledge Memory: Monolith Dump vs. In-Memory BM25 Retrieval\n\n")
+	fmt.Fprintf(&b, "MEASUREMENT TIERS (-suite):\n")
+	fmt.Fprintf(&b, "  dmaa (default)   Unified End-to-End Dual-Memory stack (Push AAG + Pull BM25 Progressive Disclosure)\n")
+	fmt.Fprintf(&b, "  push / layer1    Layer 1 Push Working Memory: Conversational Prose vs. Agent Action Grammar\n")
+	fmt.Fprintf(&b, "  pull / layer2    Layer 2 Pull Knowledge Memory: Monolith Dump vs. In-Memory BM25 Retrieval\n\n")
 
-	fmt.Fprintf(w, "QUICKSTART EXAMPLES:\n")
-	fmt.Fprintf(w, "  # 1. Local Models (LM Studio or Ollama)\n")
-	fmt.Fprintf(w, "  okf-benchmark -p lmstudio                        # Auto-detect loaded model in LM Studio\n")
-	fmt.Fprintf(w, "  okf-benchmark -suite push                        # Run Layer 1 benchmark only\n")
-	fmt.Fprintf(w, "  okf-benchmark -suite pull                        # Run Layer 2 benchmark only\n")
-	fmt.Fprintf(w, "  okf-benchmark -p ollama -m llama3.2              # Run on local Ollama\n\n")
+	fmt.Fprintf(&b, "QUICKSTART EXAMPLES:\n")
+	fmt.Fprintf(&b, "  # 1. Local Models (LM Studio or Ollama)\n")
+	fmt.Fprintf(&b, "  okf-benchmark -p lmstudio                        # Auto-detect loaded model in LM Studio\n")
+	fmt.Fprintf(&b, "  okf-benchmark -suite push                        # Run Layer 1 benchmark only\n")
+	fmt.Fprintf(&b, "  okf-benchmark -suite pull                        # Run Layer 2 benchmark only\n")
+	fmt.Fprintf(&b, "  okf-benchmark -p ollama -m llama3.2              # Run on local Ollama\n\n")
 
-	fmt.Fprintf(w, "  # 2. Remote Cloud Providers (OpenAI, Claude, Gemini, OpenRouter)\n")
-	fmt.Fprintf(w, "  okf-benchmark -p openai -m gpt-5.6-sol           # Run OpenAI GPT-5.6 Sol (Full DMAA)\n")
-	fmt.Fprintf(w, "  okf-benchmark -p openai -m gpt-4o                # Run OpenAI GPT-4o\n")
-	fmt.Fprintf(w, "  okf-benchmark -p claude -m claude-3-7-sonnet     # Run Anthropic Claude 3.7 Sonnet\n")
-	fmt.Fprintf(w, "  okf-benchmark -p gemini -m gemini-2.5-flash      # Run Google Gemini 2.5 Flash\n")
-	fmt.Fprintf(w, "  okf-benchmark -p openrouter -m deepseek/deepseek-r1\n\n")
+	fmt.Fprintf(&b, "  # 2. Remote Cloud Providers (OpenAI, Claude, Gemini, OpenRouter)\n")
+	fmt.Fprintf(&b, "  okf-benchmark -p openai -m gpt-5.6-sol           # Run OpenAI GPT-5.6 Sol (Full DMAA)\n")
+	fmt.Fprintf(&b, "  okf-benchmark -p openai -m gpt-4o                # Run OpenAI GPT-4o\n")
+	fmt.Fprintf(&b, "  okf-benchmark -p claude -m claude-3-7-sonnet     # Run Anthropic Claude 3.7 Sonnet\n")
+	fmt.Fprintf(&b, "  okf-benchmark -p gemini -m gemini-2.5-flash      # Run Google Gemini 2.5 Flash\n")
+	fmt.Fprintf(&b, "  okf-benchmark -p openrouter -m deepseek/deepseek-r1\n\n")
 
-	fmt.Fprintf(w, "  # 3. Output Inspection & Custom Parameters\n")
-	fmt.Fprintf(w, "  okf-benchmark -p openai -m gpt-5.6-sol -o        # Compare generated outputs side-by-side\n")
-	fmt.Fprintf(w, "  okf-benchmark -p openai -m gpt-5.6-sol -timeout 300s\n\n")
+	fmt.Fprintf(&b, "  # 3. Output Inspection & Custom Parameters\n")
+	fmt.Fprintf(&b, "  okf-benchmark -p openai -m gpt-5.6-sol -o        # Compare generated outputs side-by-side\n")
+	fmt.Fprintf(&b, "  okf-benchmark -p openai -m gpt-5.6-sol -timeout 300s\n\n")
 
-	fmt.Fprintf(w, "CLI OPTIONS:\n")
-	fmt.Fprintf(w, "  -s, -suite <name>        Suite: 'dmaa' (default), 'push' (Layer 1), 'pull' (Layer 2)\n")
-	fmt.Fprintf(w, "  -p, -provider <name>     Provider: lmstudio, openai, claude/anthropic, gemini, ollama, openrouter\n")
-	fmt.Fprintf(w, "  -m, -model <name>        Model ID (auto-detects provider if prefix matches: gpt-, claude-, etc.)\n")
-	fmt.Fprintf(w, "  -k, -api-key <key>       API key (default: $OPENAI_API_KEY, $ANTHROPIC_API_KEY, $GEMINI_API_KEY)\n")
-	fmt.Fprintf(w, "  -e, -endpoint <url>      Custom API endpoint URL (default: inferred per provider)\n")
-	fmt.Fprintf(w, "  -t, -temperature <float> Sampling temperature (default: 0.1)\n")
-	fmt.Fprintf(w, "  -max-tokens <int>        Maximum generation tokens (default: 3500)\n")
-	fmt.Fprintf(w, "  -timeout <duration>      Per-run HTTP timeout (default: 180s, e.g. 300s, 5m)\n")
-	fmt.Fprintf(w, "  -o, -show-output         Print generated responses side-by-side to terminal\n")
-	fmt.Fprintf(w, "  -warmup=<bool>           Pre-flight ping to prime compute pipelines (default: true)\n")
-	fmt.Fprintf(w, "  -data <path>             Path to benchmarks/data directory (auto-detected if omitted)\n")
-	fmt.Fprintf(w, "  -h, -help                Show this help and overview screen\n\n")
+	fmt.Fprintf(&b, "CLI OPTIONS:\n")
+	fmt.Fprintf(&b, "  -s, -suite <name>        Suite: 'dmaa' (default), 'push' (Layer 1), 'pull' (Layer 2)\n")
+	fmt.Fprintf(&b, "  -p, -provider <name>     Provider: lmstudio, openai, claude/anthropic, gemini, ollama, openrouter\n")
+	fmt.Fprintf(&b, "  -m, -model <name>        Model ID (auto-detects provider if prefix matches: gpt-, claude-, etc.)\n")
+	fmt.Fprintf(&b, "  -k, -api-key <key>       API key (default: $OPENAI_API_KEY, $ANTHROPIC_API_KEY, $GEMINI_API_KEY)\n")
+	fmt.Fprintf(&b, "  -e, -endpoint <url>      Custom API endpoint URL (default: inferred per provider)\n")
+	fmt.Fprintf(&b, "  -t, -temperature <float> Sampling temperature (default: 0.1)\n")
+	fmt.Fprintf(&b, "  -max-tokens <int>        Maximum generation tokens (default: 3500)\n")
+	fmt.Fprintf(&b, "  -timeout <duration>      Per-run HTTP timeout (default: 180s, e.g. 300s, 5m)\n")
+	fmt.Fprintf(&b, "  -o, -show-output         Print generated responses side-by-side to terminal\n")
+	fmt.Fprintf(&b, "  -warmup=<bool>           Pre-flight ping to prime compute pipelines (default: true)\n")
+	fmt.Fprintf(&b, "  -data <path>             Path to benchmarks/data directory (auto-detected if omitted)\n")
+	fmt.Fprintf(&b, "  -h, -help                Show this help and overview screen\n\n")
+
+	_, _ = fmt.Fprint(w, b.String())
 }
 
 func main() {
