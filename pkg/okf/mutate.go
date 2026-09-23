@@ -148,8 +148,7 @@ func ValidateConceptID(id string) error {
 		return fmt.Errorf("concept ID %q cannot start with a hyphen -", id)
 	}
 
-	if filepath.IsAbs(cleanID) || strings.HasPrefix(cleanID, "/") || strings.HasPrefix(cleanID, "\\") ||
-		(len(cleanID) >= 2 && cleanID[1] == ':' && ((cleanID[0] >= 'a' && cleanID[0] <= 'z') || (cleanID[0] >= 'A' && cleanID[0] <= 'Z'))) {
+	if IsAbsPath(cleanID) {
 		return fmt.Errorf("concept ID %q must be a relative path", id)
 	}
 
@@ -270,6 +269,10 @@ func resolveInBundle(bundleDir, relPath string) (string, error) {
 	absBundle, err := filepath.Abs(bundleDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve bundle directory: %w", err)
+	}
+
+	if IsAbsPath(relPath) {
+		return "", fmt.Errorf("concept path %q must be a relative path", relPath)
 	}
 
 	// Normalize backslashes to forward slashes before calling filepath.Clean

@@ -53,7 +53,7 @@ func ensureWithinRoot(rootDir, targetPath string) (string, error) {
 	}
 
 	cleanTarget := strings.ReplaceAll(targetPath, "\\", "/")
-	if filepath.IsAbs(targetPath) {
+	if IsAbsPath(targetPath) {
 		cleanTarget = filepath.Clean(cleanTarget)
 	} else {
 		cleanTarget = path.Join(filepath.ToSlash(realRoot), cleanTarget)
