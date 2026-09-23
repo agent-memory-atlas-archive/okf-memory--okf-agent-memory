@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -422,32 +423,47 @@ func cmdValidate(args []string) {
 		return
 	}
 
-	for _, w := range res.Warnings {
-		fmt.Printf("warn  %s\n", w)
+	printValidationOutput(os.Stdout, res, bundleDir, *strict, *stale)
+
+	if !res.IsConformant || !res.GatePassed {
+		os.Exit(1)
+	}
+}
+
+func printValidationOutput(w io.Writer, res *okf.ValidationResult, bundleDir string, strict, stale bool) {
+	p := func(format string, a ...any) {
+		_, _ = fmt.Fprintf(w, format, a...)
+	}
+	pln := func(a ...any) {
+		_, _ = fmt.Fprintln(w, a...)
+	}
+
+	for _, wMsg := range res.Warnings {
+		p("warn  %s\n", wMsg)
 	}
 	for _, g := range res.GateFindings {
-		prefix := "warn "
-		if *strict {
-			prefix = "gate "
+		prefix := "warn  "
+		if strict {
+			prefix = "gate  "
 		}
-		fmt.Printf("%s %s\n", prefix, g)
+		p("%s%s\n", prefix, g)
 	}
 	for _, bl := range res.BrokenLinks {
-		prefix := "warn "
-		if *strict {
-			prefix = "gate "
+		prefix := "warn  "
+		if strict {
+			prefix = "gate  "
 		}
-		fmt.Printf("%s %s: broken concept link -> %s (%s)\n", prefix, bl.SourceConcept, bl.TargetHref, bl.Reason)
+		p("%s%s: broken concept link -> %s (%s)\n", prefix, bl.SourceConcept, bl.TargetHref, bl.Reason)
 	}
 	for _, o := range res.Orphans {
-		prefix := "warn "
-		if *strict {
-			prefix = "gate "
+		prefix := "warn  "
+		if strict {
+			prefix = "gate  "
 		}
-		fmt.Printf("%s %s.md: orphan (no concept links in or out)\n", prefix, o)
+		p("%s%s.md: orphan (no concept links in or out)\n", prefix, o)
 	}
 	for _, e := range res.Errors {
-		fmt.Printf("error %s\n", e)
+		p("error %s\n", e)
 	}
 
 	verStr := "no declared version"
@@ -456,24 +472,31 @@ func cmdValidate(args []string) {
 	}
 
 	flagSummary := ""
-	if *strict {
+	if strict {
 		flagSummary += " [--strict]"
 	}
-	if *stale {
+	if stale {
 		flagSummary += " [--stale]"
 	}
 
-	fmt.Printf("\nOKF v0.2 check of \"%s\" (%s): %d concept(s), %d error(s), %d warning(s); %d broken link(s), %d orphan(s), %d stale%s. ",
-		bundleDir, verStr, res.ConceptCount, len(res.Errors), len(res.Warnings)+len(res.GateFindings), len(res.BrokenLinks), len(res.Orphans), res.StaleCount, flagSummary)
-
-	if !res.IsConformant {
-		fmt.Println("NOT conformant.")
-		os.Exit(1)
-	} else if !res.GatePassed {
-		fmt.Println("Conformant, but the producer gate failed.")
-		os.Exit(1)
+	gateCount := len(res.GateFindings) + len(res.BrokenLinks) + len(res.Orphans)
+	warnCount := len(res.Warnings)
+	if strict {
+		p("\nOKF v0.2 check of \"%s\" (%s): %d concept(s), %d error(s), %d gate finding(s), %d warning(s); %d broken link(s), %d orphan(s), %d stale%s. ",
+			bundleDir, verStr, res.ConceptCount, len(res.Errors), gateCount, warnCount, len(res.BrokenLinks), len(res.Orphans), res.StaleCount, flagSummary)
 	} else {
-		fmt.Println("Conformant.")
+		warnCount += gateCount
+		p("\nOKF v0.2 check of \"%s\" (%s): %d concept(s), %d error(s), %d warning(s); %d broken link(s), %d orphan(s), %d stale%s. ",
+			bundleDir, verStr, res.ConceptCount, len(res.Errors), warnCount, len(res.BrokenLinks), len(res.Orphans), res.StaleCount, flagSummary)
+	}
+
+	switch {
+	case !res.IsConformant:
+		pln("NOT conformant.")
+	case !res.GatePassed:
+		pln("Conformant, but the producer gate failed.")
+	default:
+		pln("Conformant.")
 	}
 }
 
