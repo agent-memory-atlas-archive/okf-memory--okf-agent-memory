@@ -368,7 +368,7 @@ func sanitizeConceptMetadata(c *Concept) error {
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == "---" {
-				inDelimiter = true
+				inDelimiter = !inDelimiter
 				continue
 			}
 			if inDelimiter {
@@ -381,7 +381,6 @@ func sanitizeConceptMetadata(c *Concept) error {
 						return fmt.Errorf("concept body cannot smuggle frontmatter block containing %q", key)
 					}
 				}
-				inDelimiter = false
 			}
 		}
 	}
