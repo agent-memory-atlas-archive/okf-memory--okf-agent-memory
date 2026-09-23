@@ -935,3 +935,44 @@ func TestValidateConceptIDDirectoryDepthAndHiddenFiles(t *testing.T) {
 		}
 	}
 }
+
+// TestPathTraversalAbsPathEvasion verifies that IsAbsPath correctly identifies
+// both Windows and POSIX absolute paths regardless of the host OS, preventing
+// evasion of path traversal checks.
+func TestPathTraversalAbsPathEvasion(t *testing.T) {
+	root := t.TempDir()
+	bundleDir := filepath.Join(root, "knowledge")
+	if err := InitBundle(bundleDir); err != nil {
+		t.Fatalf("InitBundle: %v", err)
+	}
+
+	absPaths := []string{
+		"/etc/passwd",
+		"\\Windows\\System32\\cmd.exe",
+		"C:\\Windows\\System32\\cmd.exe",
+		"d:/temp/file.md",
+	}
+
+	for _, p := range absPaths {
+		// 1. Test ensureWithinRoot handles cross-platform absolute paths securely
+		if _, err := ensureWithinRoot(bundleDir, p); err == nil {
+			t.Errorf("ensureWithinRoot(%q): expected path traversal error for absolute path, got nil", p)
+		}
+
+		// 2. Test SaveConcept rejects concept paths with absolute paths
+		c := &Concept{
+			ID:    "evil",
+			Path:  p,
+			Type:  "test",
+			Title: "Evil Concept",
+		}
+		if err := SaveConcept(bundleDir, c, true, false, false, "agent/test"); err == nil {
+			t.Errorf("SaveConcept(%q): expected error for absolute concept path, got nil", p)
+		}
+
+		// 3. Test ValidateConceptID rejects absolute IDs
+		if err := ValidateConceptID(p); err == nil {
+			t.Errorf("ValidateConceptID(%q): expected error for absolute concept ID, got nil", p)
+		}
+	}
+}
