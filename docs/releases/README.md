@@ -4,6 +4,7 @@ Historical release notes for **OKF Agent Memory**.
 
 | Version | Release Date | Highlights |
 | :--- | :--- | :--- |
+| [**v0.4.3**](./v0.4.3.md) | 2026-09-23 | Absolute Path Evasion Defense, Frontmatter Smuggling Defense, Validate Taxonomy Reconciliation |
 | [**v0.4.2**](./v0.4.2.md) | 2026-09-19 | MCP Security Hardening, Boundary Integrity, ReDoS/OOM Protection, Unicode BiDi & Trojan Source Defenses |
 | [**v0.4.1**](./v0.4.1.md) | 2026-09-18 | Strict MCP Conformance (OpenCode, Pi Agent), Crash Consistency, Atomic Writes, Index Broken Links, Bidirectional Drift |
 | [**v0.4.0**](./v0.4.0.md) | 2026-09-17 | Zero-Knowledge Vault Synchronization, Argon2id KDF, AES-256-GCM Envelope Encryption, 3-Way Reconcile Engine, OKF Hub CLI |

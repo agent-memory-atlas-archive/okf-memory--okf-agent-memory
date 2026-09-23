@@ -210,7 +210,7 @@ okf-agent-memory/
 │   ├── spec/               # OKF convention v0.1, compatibility analysis & architecture RFCs
 │   ├── security/           # Data governance, secret prevention & adversarial security audits
 │   ├── project/            # Project roadmap, release playbook & multi-agent testing
-│   └── releases/           # Versioned release notes & changelog archive (v0.1.0 – v0.4.2)
+│   └── releases/           # Versioned release notes & changelog archive (v0.1.0 – v0.4.3)
 ├── examples/               # Domain-neutral reference DMAA projects (AGENTS.md + OKF v0.2 knowledge/)
 │   ├── books/              # Literature & editorial analysis repository
 │   ├── coaching/           # Executive coaching & client session repository

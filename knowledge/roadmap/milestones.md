@@ -4,7 +4,7 @@ title: "Project Roadmap & Development Milestones"
 description: "Phased implementation roadmap from specification validation to Go library, CLI tooling, cross-agent testing, and zero-knowledge hub sync."
 resource: "https://github.com/okf-memory/okf-agent-memory"
 tags: [roadmap, milestones, phases, planning]
-generated: { by: agent/mcp, at: "2026-09-18T08:29:12Z" }
+generated: { by: agent/mcp, at: "2026-09-23T19:20:01Z" }
 status: stable
 sources:
   - resource: ../../docs/project/ROADMAP.md
@@ -15,7 +15,7 @@ sources:
 
 # Project Roadmap & Development Milestones
 
-The project progresses through 17 structured phases designed to take OKF Agent Memory from draft convention to a production-ready standard.[^roadmap]
+The project progresses through 18 structured phases designed to take OKF Agent Memory from draft convention to a production-ready standard.[^roadmap]
 
 ## Implementation Phases
 
@@ -38,6 +38,7 @@ The project progresses through 17 structured phases designed to take OKF Agent M
 | **Phase 15**| **Zero-Knowledge Vault Sync & Memory Hub** | **Completed** | Client-side AES-256-GCM envelope crypto, Argon2id KDF, blind CAS protocol, atomic head concurrency control, 3-way reconcile engine, and CLI hub commands with Bearer auth. |
 | **Phase 16**| **Strict MCP Conformance & Storage Hardening** | **Completed** | Object `outputSchema` and `structuredContent` MCP specification conformance (OpenCode, Pi Agent), atomic filesystem writes, index broken link scanning, bidirectional drift validation, and crash consistency test suites. |
 | **Phase 17**| **MCP Boundary Integrity & Security Hardening** | **Completed** | Parameter bounds & DoS limits (`getStringArg`), stdin 4MB streaming limit, memory cache corruption prevention, Unicode zero-width/BiDi protection, frontmatter smuggling defense, directory nesting bounds (`MaxConceptDirectoryDepth = 8`), and cross-platform backslash traversal sanitation. |
+| **Phase 18**| **Cross-Platform Boundary Hardening & Validation Taxonomy** | **Completed** | Cross-platform absolute path evasion protection (`IsAbsPath`), multi-line frontmatter smuggling defense, validate findings taxonomy separation, and Jules security automation. |
 
 ## Inter-Concept Connections
 

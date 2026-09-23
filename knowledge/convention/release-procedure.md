@@ -2,8 +2,8 @@
 type: Process
 title: "Release Procedure & Distribution Runbook"
 description: "Canonical procedure for preparing releases, quality gates, file inventory, signed tagging, and the human push boundary."
-generated: { by: agent/mcp, at: "2026-09-18T08:28:21Z" }
 tags: [release, playbook, runbook, distribution, workflow, tagging]
+generated: { by: agent/mcp, at: "2026-09-23T19:20:06Z" }
 status: stable
 sources:
   - resource: ../../docs/project/playbooks/RELEASE_PLAYBOOK.md
@@ -51,7 +51,7 @@ Update or create all files in the canonical release inventory:
 - [ ] `knowledge/log.md`: Record release entry under today's date
 - [ ] `knowledge/roadmap/milestones.md`: Update milestone deliverables and current phase status
 - [ ] `CONTRIBUTORS.md`: Credit human contributors only (humans who author PRs using AI agents are credited normally; never credit dedicated bot/agent accounts like Jules or Claude Bot)
-- [ ] `README.md`: Update supported version range (e.g. `(v0.1.0 – v0.4.2)`)
+- [ ] `README.md`: Update supported version range (e.g. `(v0.1.0 – v0.4.3)`)
 
 ### Phase 3: Git Flow & Signed Tagging
 1. Stage and commit all release preparation files on `develop`:

@@ -1,4 +1,7 @@
 ## 2026-09-23
+* **Release**: Published version v0.4.3 — Cross-platform absolute path evasion defense (`IsAbsPath`), multi-line YAML frontmatter smuggling defense in concept bodies, CLI validate findings taxonomy separation and summary counter reconciliation, and automated security audit discovery expansion.
+* **Update**: Updated concept `convention/release-procedure.md`.
+* **Update**: Updated concept `roadmap/milestones.md` adding Phase 18 (Cross-Platform Boundary Hardening & Validation Taxonomy).
 * **Update**: Updated concept `convention/security-audit.md`.
 
 ## 2026-09-19
