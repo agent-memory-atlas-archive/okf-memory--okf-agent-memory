@@ -37,9 +37,10 @@ type ValidationResult struct {
 
 // ValidateOptions controls validation severity and checks.
 type ValidateOptions struct {
-	Strict bool
-	Drift  bool
-	Stale  bool
+	Strict      bool
+	Drift       bool
+	Stale       bool
+	StaleWithin time.Duration
 }
 
 func parseTimestamp(s string) (time.Time, bool) {
@@ -227,6 +228,9 @@ func Validate(b *Bundle, opts ValidateOptions) *ValidationResult {
 			} else if today >= c.StaleAfter {
 				res.StaleCount++
 				res.Warnings = append(res.Warnings, fmt.Sprintf("%s: concept is stale (stale_after %s <= %s)", at, c.StaleAfter, today))
+			} else if opts.StaleWithin > 0 && c.IsStaleWithin(time.Now().UTC(), opts.StaleWithin) {
+				res.StaleCount++
+				res.Warnings = append(res.Warnings, fmt.Sprintf("%s: concept will become stale soon (stale_after %s within %v)", at, c.StaleAfter, opts.StaleWithin))
 			}
 		}
 	}
@@ -314,7 +318,7 @@ func Validate(b *Bundle, opts ValidateOptions) *ValidationResult {
 	res.IsConformant = len(res.Errors) == 0
 	gateFailure := (opts.Strict && (len(b.BrokenLinks) > 0 || len(b.Orphans) > 0)) ||
 		(opts.Strict && isV2 && len(res.GateFindings) > 0) ||
-		(opts.Stale && res.StaleCount > 0)
+		((opts.Stale || opts.StaleWithin > 0) && res.StaleCount > 0)
 	res.GatePassed = res.IsConformant && !gateFailure
 
 	return res

@@ -738,7 +738,12 @@ func cmdCreate(args []string) {
 		Body:        *body,
 	}
 
-	err := okf.SaveConcept(bundleDir, c, true, !*noLog, !*noIndex, *actor)
+	err := okf.SaveConcept(bundleDir, c, okf.SaveOptions{
+		IsNew:     true,
+		AutoLog:   !*noLog,
+		AutoIndex: !*noIndex,
+		Actor:     *actor,
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -821,7 +826,12 @@ func cmdUpdate(args []string) {
 		c.Body = *body
 	}
 
-	err = okf.SaveConcept(bundleDir, c, false, !*noLog, !*noIndex, *actor)
+	err = okf.SaveConcept(bundleDir, c, okf.SaveOptions{
+		IsNew:     false,
+		AutoLog:   !*noLog,
+		AutoIndex: !*noIndex,
+		Actor:     *actor,
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

@@ -388,8 +388,16 @@ func sanitizeConceptMetadata(c *Concept) error {
 	return nil
 }
 
+// SaveOptions controls bookkeeping and authoring metadata when persisting a concept.
+type SaveOptions struct {
+	IsNew     bool
+	AutoLog   bool
+	AutoIndex bool
+	Actor     string
+}
+
 // SaveConcept writes a concept file to disk and optionally executes automatic bookkeeping.
-func SaveConcept(bundleDir string, c *Concept, isNew, autoLog, autoIndex bool, actor string) error {
+func SaveConcept(bundleDir string, c *Concept, opts SaveOptions) error {
 	if c.ID == "" && c.Path != "" {
 		c.ID = strings.TrimSuffix(c.Path, ".md")
 	}
@@ -403,7 +411,7 @@ func SaveConcept(bundleDir string, c *Concept, isNew, autoLog, autoIndex bool, a
 	}
 
 	// Update generated timestamp & actor
-	actor = strings.TrimSpace(actor)
+	actor := strings.TrimSpace(opts.Actor)
 	if actor == "" {
 		actor = "agent/okf-tool"
 	}
@@ -432,16 +440,16 @@ func SaveConcept(bundleDir string, c *Concept, isNew, autoLog, autoIndex bool, a
 	}
 
 	// Automated Bookkeeping
-	if autoIndex {
+	if opts.AutoIndex {
 		if err := UpdateParentIndex(bundleDir, c); err != nil {
 			return fmt.Errorf("failed to update parent index: %w", err)
 		}
 	}
 
-	if autoLog {
+	if opts.AutoLog {
 		entryType := "Update"
 		desc := fmt.Sprintf("Updated concept `%s`.", c.Path)
-		if isNew {
+		if opts.IsNew {
 			entryType = "Creation"
 			desc = fmt.Sprintf("Documented concept `%s` (%s).", c.Path, c.Title)
 		}
@@ -508,7 +516,12 @@ func RelateConcepts(bundleDir, sourceID, targetID, relationDesc, actor string) e
 
 	srcConcept.Body = insertRelationship(srcConcept.Body, strings.TrimPrefix(relStatement, "\n"))
 
-	if err := SaveConcept(bundleDir, srcConcept, false, false, false, actor); err != nil {
+	if err := SaveConcept(bundleDir, srcConcept, SaveOptions{
+		IsNew:     false,
+		AutoLog:   false,
+		AutoIndex: false,
+		Actor:     actor,
+	}); err != nil {
 		return fmt.Errorf("failed to save related concept: %w", err)
 	}
 
