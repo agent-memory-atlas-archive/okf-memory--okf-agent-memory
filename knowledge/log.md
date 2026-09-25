@@ -1,3 +1,7 @@
+## 2026-09-25
+* **Refactoring**: Decoupled CLI subcommand implementations and command registry into `internal/cli` to keep `cmd/okf` lean and encapsulate command parsing.
+* **Update**: Synchronized `code_refs` in `architecture/governance-model.md` and `architecture/zero-knowledge-vault-sync.md`.
+
 ## 2026-09-23
 * **Release**: Published version v0.4.3 — Cross-platform absolute path evasion defense (`IsAbsPath`), multi-line YAML frontmatter smuggling defense in concept bodies, CLI validate findings taxonomy separation and summary counter reconciliation, and automated security audit discovery expansion.
 * **Update**: Updated concept `convention/release-procedure.md`.

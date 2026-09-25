@@ -34,11 +34,12 @@ okf validate [bundle-path] [--strict] [--stale] [--drift] [--json]
 * **Flags**:
   * `--strict`: Fails the producer gate on broken links, orphans, superseded verifications, and schema discrepancies.
   * `--stale`: Fails the producer gate if any concept has reached or passed its `stale_after` date.
+  * `--stale-within <duration>`: Fails the producer gate if any concept will expire within the given relative horizon (e.g. `14d`, `2w`, `3m`).
   * `--drift`: Checks whether concept listings in index files differ from concept descriptions, and verifies that `code_refs` point to valid source paths.
   * `--json`: Emits machine-readable JSON diagnostics.
 * **Exit Codes**:
   * `0`: Valid & conformant (producer gate passed).
-  * `1`: Non-conformant or failed producer gate (`--strict` / `--stale`).
+  * `1`: Non-conformant or failed producer gate (`--strict` / `--stale` / `--stale-within`).
   * `2`: File system or bundle loading error.
 
 #### JSON Output Example:
@@ -61,17 +62,28 @@ okf validate [bundle-path] [--strict] [--stale] [--drift] [--json]
 
 ### 2. `search`
 
-Searches concepts within a bundle using fast in-memory BM25 scoring across titles, descriptions, tags, IDs, and body text, or discovers concepts governing a specific file path via `code_refs`.
+Searches concepts within a bundle using fast in-memory BM25 scoring across titles, descriptions, tags, IDs, and body text, filters by frontmatter metadata predicates, or discovers concepts governing a specific file path via `code_refs`.
 
 ```bash
-okf search [query] [bundle-path] [--for-path <file-or-dir>] [--limit <N>] [--json]
+okf search [query] [bundle-path] \
+  [--for-path <file-or-dir>] \
+  [--filter <predicate>] \
+  [--stale-within <duration>] \
+  [--limit <N>] \
+  [--json]
 ```
 
 * **Arguments**:
-  * `query` (optional when `--for-path` is provided): Search terms or keywords.
+  * `query` (optional when `--for-path`, `--filter`, or `--stale-within` is provided): Search terms or keywords.
   * `bundle-path` (optional, default: `./knowledge`).
 * **Flags**:
   * `--for-path <path>`: Filters concepts governing a specific source file or directory via `code_refs` (exact match, directory prefix, standard glob, or recursive `**` wildcard).
+  * `--filter <expr>`: Filters concepts by frontmatter key-value predicates (supports `=`, `!=`, `null`/`nil` checks, and comma-separated clauses). Examples:
+    * `--filter "type=Decision"`
+    * `--filter "verified.by=human"`
+    * `--filter "verified.by!=null,governance=constraint"`
+    * `--filter "tags=security"`
+  * `--stale-within <duration>`: Filters concepts that are already stale or will expire within relative horizon (e.g. `14d`, `2w`, `3m`).
   * `--limit <N>` (default: `10`): Maximum results to return.
   * `--json`: Outputs machine-readable JSON array of matching concepts with governance tiers and matched fields.
 
