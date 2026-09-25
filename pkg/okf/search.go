@@ -78,6 +78,15 @@ func (b *Bundle) Search(query string, limit int) []SearchResult {
 		return nil
 	}
 
+	// TODO(search-scoring): Fix DF/TF asymmetry and acronym/short-term suppression:
+	// 1. DF currently uses strings.Contains on concatenated concept content, causing short
+	//    acronyms ("ci", "ui", "id") to match as substrings inside words ("specific", "require",
+	//    "decision"), driving df -> N and collapsing IDF to near zero via the smoothing formula.
+	//    DF calculation must use the same tokenization and matching logic as TF.
+	// 2. TF prefix matching (HasPrefix) causes false positives for short stems ("log" -> "login",
+	//    "auth" -> "author"). Require exact token matches for short tokens (< 4 chars) and allow
+	//    prefix matching only for tokens >= 4 chars.
+	// 3. Add field length normalization or per-field caps on TF (currently only tfBody is capped).
 	// Compute Document Frequency for each query term
 	df := make(map[string]float64)
 	for _, t := range qTokens {
