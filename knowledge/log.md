@@ -1,4 +1,5 @@
 ## 2026-09-27
+* **Release**: Published version v0.4.4: Metadata mutation parity for CLI and MCP (#38, #39), core MCP server and Hub sync decoupling into dedicated packages, generic frontmatter query filter AST evaluation (`--filter`), temporal staleness horizon projection (`--stale-within`), and drift validation link resolution fix (#41).
 * **Fix**: Resolved false positive parent index warnings in drift validation for bundle-absolute and dot-relative links (#41).
 * **Update**: Synchronized root `knowledge/index.md` with `requirements/mutation-metadata.md` and constrained MCP tag length to 50 characters (#38, #39).
 
