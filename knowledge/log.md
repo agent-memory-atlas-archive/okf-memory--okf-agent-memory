@@ -1,4 +1,5 @@
 ## 2026-09-27
+* **Fix**: Resolved false positive parent index warnings in drift validation for bundle-absolute and dot-relative links (#41).
 * **Update**: Synchronized root `knowledge/index.md` with `requirements/mutation-metadata.md` and constrained MCP tag length to 50 characters (#38, #39).
 
 ## 2026-09-26

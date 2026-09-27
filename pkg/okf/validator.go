@@ -270,6 +270,19 @@ func Validate(b *Bundle, opts ValidateOptions) *ValidationResult {
 
 		// Check that each concept is listed in its immediate parent index.md
 		if len(b.Indexes) > 0 {
+			indexTargets := make(map[string]map[string]bool, len(b.Indexes))
+			for idxPath, idxContent := range b.Indexes {
+				body := StripFences(idxContent)
+				matches := linkRegex.FindAllStringSubmatch(body, -1)
+				targets := make(map[string]bool, len(matches))
+				for _, match := range matches {
+					if targetID := b.ResolveLink(idxPath, match[1]); targetID != "" {
+						targets[targetID] = true
+					}
+				}
+				indexTargets[idxPath] = targets
+			}
+
 			for _, c := range b.Concepts {
 				normConceptPath := strings.ReplaceAll(c.Path, "\\", "/")
 				dir := path.Dir(normConceptPath)
@@ -277,15 +290,13 @@ func Validate(b *Bundle, opts ValidateOptions) *ValidationResult {
 				if dir != "." {
 					indexRel = path.Join(dir, "index.md")
 				}
-				idxContent, ok := b.Indexes[indexRel]
+				targets, ok := indexTargets[indexRel]
 				if !ok {
 					res.Warnings = append(res.Warnings, fmt.Sprintf("%s: parent index %s does not exist", c.Path, indexRel))
 					continue
 				}
 
-				targetFilename := filepath.Base(c.Path)
-				linkTarget := fmt.Sprintf("(%s)", targetFilename)
-				if !strings.Contains(idxContent, linkTarget) {
+				if !targets[c.ID] {
 					res.Warnings = append(res.Warnings, fmt.Sprintf("%s: concept is not listed in parent index %s", c.Path, indexRel))
 				}
 			}
