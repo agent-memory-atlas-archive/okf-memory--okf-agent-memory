@@ -176,6 +176,18 @@ okf update <concept-id> [bundle-path] \
   [--json]
 ```
 
+* **Flags**:
+  * `--desc`: Updated one-sentence description.
+  * `--title`: Updated concept title.
+  * `--body`: Updated markdown body content.
+  * `--type`: Updated non-empty concept type.
+  * `--status`: Updated lifecycle status (`draft`, `stable`, or `deprecated`).
+  * `--tags`: Replacement comma-separated tags (pass `--tags ""` to clear tags).
+  * `--actor`: Author provenance identifier (default: `agent/cli`).
+  * `--no-log`: Skips appending an entry to `log.md`.
+  * `--no-index`: Skips updating the parent `index.md` listing.
+  * `--json`: Emit machine-readable JSON result.
+
 Only supplied flags change the existing concept. `--type` requires a non-empty value, `--status` accepts only `draft`, `stable`, or `deprecated`, and `--tags` replaces the current tags after trimming each comma-separated value. Pass `--tags ""` to clear all tags; omit it to retain them.
 
 ---
@@ -248,7 +260,7 @@ okf mcp [bundle-path]
 | `okf_relate` | `source_id`, `target_id`, `description` | Link two concepts together. |
 | `okf_validate` | `strict` (bool), `drift` (bool) | Verify bundle conformance. |
 
-MCP `tags` is an array of strings, such as `["auth", "security"]`. Both MCP tools accept lifecycle statuses `draft`, `stable`, and `deprecated`; updating with no `status` retains the existing value.
+MCP `tags` is an array of strings (max 50 chars per tag), such as `["auth", "security"]`. Both MCP tools accept lifecycle statuses `draft`, `stable`, and `deprecated`; updating with no `status` retains the existing value.
 
 ---
 

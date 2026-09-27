@@ -1,3 +1,6 @@
+## 2026-09-27
+* **Update**: Synchronized root `knowledge/index.md` with `requirements/mutation-metadata.md` and constrained MCP tag length to 50 characters (#38, #39).
+
 ## 2026-09-26
 * **Update**: Linked `requirements/mutation-metadata.md` to `architecture/tooling-decision.md` (Specifies lifecycle and tag mutation behavior for the Go CLI and MCP surfaces.).
 * **Creation**: Documented concept `requirements/mutation-metadata.md` (Metadata Mutation Parity for CLI and MCP).

@@ -379,8 +379,8 @@ func getTagsArg(args map[string]any) ([]string, error) {
 	tags := make([]string, 0, len(value))
 	for _, item := range value {
 		tag, ok := item.(string)
-		if !ok || len(tag) > 1000 || strings.TrimSpace(tag) == "" {
-			return nil, fmt.Errorf("each tag must be a non-empty string of at most 1000 bytes")
+		if !ok || len(tag) > 50 || strings.TrimSpace(tag) == "" {
+			return nil, fmt.Errorf("each tag must be a non-empty string of at most 50 bytes")
 		}
 		tags = append(tags, strings.TrimSpace(tag))
 	}

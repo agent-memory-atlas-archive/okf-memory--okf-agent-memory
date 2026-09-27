@@ -325,7 +325,7 @@
         "tags": {
           "type": "array",
           "maxItems": 100,
-          "items": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "items": {"type": "string", "minLength": 1, "maxLength": 50},
           "description": "Optional array of searchable tags."
         },
         "bundle": {
@@ -391,7 +391,7 @@
         "tags": {
           "type": "array",
           "maxItems": 100,
-          "items": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "items": {"type": "string", "minLength": 1, "maxLength": 50},
           "description": "Replacement tags; an empty array clears existing tags."
         },
         "title": {

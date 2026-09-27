@@ -128,6 +128,10 @@ func cmdCreate(args []string) {
 
 	bundleDir, flagArgs := defaultBundle(subArgs)
 	_ = fs.Parse(flagArgs)
+	if strings.TrimSpace(*cType) == "" {
+		fmt.Fprintln(os.Stderr, "Invalid type: concept type cannot be empty or whitespace")
+		os.Exit(1)
+	}
 	if !okf.IsValidConceptStatus(*status) {
 		fmt.Fprintf(os.Stderr, "Invalid status %q: expected draft, stable, or deprecated\n", *status)
 		os.Exit(1)
@@ -209,11 +213,17 @@ func cmdUpdate(args []string) {
 
 	bundleDir, flagArgs := defaultBundle(subArgs)
 	_ = fs.Parse(flagArgs)
-	if fsPassed(fs, "status") && !okf.IsValidConceptStatus(*status) {
+
+	passed := make(map[string]bool)
+	fs.Visit(func(f *flag.Flag) {
+		passed[f.Name] = true
+	})
+
+	if passed["status"] && !okf.IsValidConceptStatus(*status) {
 		fmt.Fprintf(os.Stderr, "Invalid status %q: expected draft, stable, or deprecated\n", *status)
 		os.Exit(1)
 	}
-	if fsPassed(fs, "type") && strings.TrimSpace(*cType) == "" {
+	if passed["type"] && strings.TrimSpace(*cType) == "" {
 		fmt.Fprintln(os.Stderr, "Invalid type: concept type cannot be empty or whitespace")
 		os.Exit(1)
 	}
@@ -230,22 +240,22 @@ func cmdUpdate(args []string) {
 		os.Exit(1)
 	}
 
-	if fsPassed(fs, "title") {
+	if passed["title"] {
 		c.Title = *title
 	}
-	if fsPassed(fs, "desc") {
+	if passed["desc"] {
 		c.Description = *desc
 	}
-	if fsPassed(fs, "body") {
+	if passed["body"] {
 		c.Body = *body
 	}
-	if fsPassed(fs, "type") {
+	if passed["type"] {
 		c.Type = strings.TrimSpace(*cType)
 	}
-	if fsPassed(fs, "status") {
+	if passed["status"] {
 		c.Status = *status
 	}
-	if fsPassed(fs, "tags") {
+	if passed["tags"] {
 		c.Tags = parseMutationTags(*tagsStr)
 	}
 
@@ -280,16 +290,6 @@ func parseMutationTags(raw string) []string {
 		}
 	}
 	return tags
-}
-
-func fsPassed(fs *flag.FlagSet, name string) bool {
-	found := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			found = true
-		}
-	})
-	return found
 }
 
 func cmdRelate(args []string) {

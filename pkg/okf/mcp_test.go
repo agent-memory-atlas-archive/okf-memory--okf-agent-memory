@@ -136,7 +136,7 @@ func TestMCPMutationMetadata(t *testing.T) {
 		{"okf_create", map[string]any{"concept_id": "invalid", "type": "Fact", "title": "Invalid", "description": "Invalid", "status": "active"}, true},
 		{"okf_update", map[string]any{"concept_id": "item", "type": "  "}, true},
 		{"okf_update", map[string]any{"concept_id": "item", "tags": "comma,separated"}, true},
-		{"okf_update", map[string]any{"concept_id": "item", "tags": []string{strings.Repeat("x", 1001)}}, true},
+		{"okf_update", map[string]any{"concept_id": "item", "tags": []string{strings.Repeat("x", 51)}}, true},
 		{"okf_create", map[string]any{"concept_id": "default-status", "type": "Fact", "title": "Default", "description": "Default"}, false},
 	}
 	var inputs []string
