@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/okf-memory/okf-agent-memory/pkg/lock"
+	"github.com/okf-memory/okf-agent-memory/pkg/okf"
 	"github.com/okf-memory/okf-agent-memory/pkg/registry"
 )
 
@@ -41,7 +43,8 @@ func cmdPull(args []string) {
 
 	if fs.NArg() < 1 {
 		printPullUsage()
-		os.Exit(1)
+		exitFunc(1)
+		return
 	}
 
 	target := fs.Arg(0)
@@ -51,7 +54,8 @@ func cmdPull(args []string) {
 	manifest, err := client.Resolve(target)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		exitFunc(1)
+		return
 	}
 
 	vendorDir := filepath.Join(".okf", "vendor", filepath.FromSlash(manifest.ID))
@@ -63,7 +67,43 @@ func cmdPull(args []string) {
 	fmt.Printf("Downloading %s (version: %s)...\n", manifest.ID, manifest.Version)
 	if err := client.DownloadAndExtract(manifest, vendorDir); err != nil {
 		fmt.Fprintf(os.Stderr, "Download error: %v\n", err)
-		os.Exit(1)
+		exitFunc(1)
+		return
+	}
+
+	// Post-install validation: ensure installed bundle conforms to OKF v0.2
+	rollback := func() {
+		_ = os.RemoveAll(vendorDir)
+		if strings.Contains(manifest.ID, "/") {
+			parentDir := filepath.Dir(vendorDir)
+			if entries, err := os.ReadDir(parentDir); err == nil && len(entries) == 0 {
+				_ = os.Remove(parentDir)
+			}
+		}
+	}
+
+	if _, err := os.Stat(filepath.Join(vendorDir, "index.md")); os.IsNotExist(err) {
+		rollback()
+		fmt.Fprintf(os.Stderr, "Error: bundle %q is not a valid OKF v0.2 bundle: missing index.md (installation rolled back)\n", manifest.ID)
+		exitFunc(1)
+		return
+	}
+
+	vb, err := okf.LoadBundle(vendorDir)
+	if err != nil {
+		rollback()
+		fmt.Fprintf(os.Stderr, "Error: bundle %q failed to load: %v (installation rolled back)\n", manifest.ID, err)
+		exitFunc(1)
+		return
+	}
+
+	diag := okf.Validate(vb, okf.ValidateOptions{Strict: true})
+	if !diag.IsConformant {
+		rollback()
+		fmt.Fprintf(os.Stderr, "Error: bundle %q failed strict validation (%d errors, %d broken links); installation rolled back\n",
+			manifest.ID, len(diag.Errors), len(diag.BrokenLinks))
+		exitFunc(1)
+		return
 	}
 
 	lockPath := "okf.lock"
@@ -82,5 +122,5 @@ func cmdPull(args []string) {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update okf.lock: %v\n", err)
 	}
 
-	fmt.Printf("Successfully installed %s into %s\n", manifest.ID, vendorDir)
+	fmt.Printf("Successfully installed and verified %s in %s\n", manifest.ID, vendorDir)
 }

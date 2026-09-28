@@ -129,11 +129,13 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 		return fmt.Errorf("error reading bundle stream: %w", err)
 	}
 
+	calculated := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
 	if manifest.Hash != "" {
-		calculated := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
 		if !strings.EqualFold(calculated, manifest.Hash) {
 			return fmt.Errorf("checksum mismatch: expected %s, got %s", manifest.Hash, calculated)
 		}
+	} else {
+		manifest.Hash = calculated
 	}
 
 	if err := os.MkdirAll(targetDir, 0o755); err != nil {
@@ -180,6 +182,23 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 				return err
 			}
 			outFile.Close()
+		}
+	}
+
+	// Flatten wrapping root directory if present (e.g. GitHub archive prefixes like repo-main/)
+	if _, err := os.Stat(filepath.Join(targetDir, "index.md")); os.IsNotExist(err) {
+		entries, err := os.ReadDir(targetDir)
+		if err == nil && len(entries) == 1 && entries[0].IsDir() {
+			subDir := filepath.Join(targetDir, entries[0].Name())
+			if _, err := os.Stat(filepath.Join(subDir, "index.md")); err == nil {
+				subEntries, err := os.ReadDir(subDir)
+				if err == nil {
+					for _, se := range subEntries {
+						_ = os.Rename(filepath.Join(subDir, se.Name()), filepath.Join(targetDir, se.Name()))
+					}
+					_ = os.Remove(subDir)
+				}
+			}
 		}
 	}
 

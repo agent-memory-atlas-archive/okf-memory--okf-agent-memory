@@ -135,3 +135,94 @@ func TestCmdVendor_RemoveNonExistent(t *testing.T) {
 		t.Errorf("expected error message about bundle not installed, got: %s", errOutput)
 	}
 }
+
+func TestCmdPull_InvalidBundleRollback(t *testing.T) {
+	// Archive with NO index.md (invalid OKF bundle)
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gw)
+	content := "some random file"
+	tw.WriteHeader(&tar.Header{Name: "random.txt", Mode: 0o644, Size: int64(len(content))})
+	tw.Write([]byte(content))
+	tw.Close()
+	gw.Close()
+	data := buf.Bytes()
+	hash := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
+
+	mockURL := "https://mock.registry.okf-memory.dev"
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/bundles/bad/bundle.json" {
+			fmt.Fprintf(w, `{"id":"bad/bundle","version":"1.0.0","hash":%q,"download_url":"/bundle.tgz"}`, hash)
+		} else if r.URL.Path == "/bundle.tgz" {
+			w.Write(data)
+		} else {
+			http.NotFound(w, r)
+		}
+	})
+
+	origFactory := newRegistryClient
+	defer func() { newRegistryClient = origFactory }()
+	newRegistryClient = func(baseURL string) *registry.Client {
+		c := registry.NewClient(baseURL)
+		c.HTTPClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			return rec.Result(), nil
+		})
+		return c
+	}
+
+	workDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir)
+
+	var exitCode int
+	origExit := exitFunc
+	defer func() { exitFunc = origExit }()
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	r, w, _ := os.Pipe()
+	origStderr := os.Stderr
+	os.Stderr = w
+	defer func() { os.Stderr = origStderr }()
+
+	cmd, ok := FindCommand("pull")
+	if !ok {
+		t.Fatalf("pull command not found in registry")
+	}
+
+	cmd.Run([]string{"--registry", mockURL, "bad/bundle"})
+	w.Close()
+
+	var errBuf bytes.Buffer
+	io.Copy(&errBuf, r)
+	errOutput := errBuf.String()
+
+	if exitCode != 1 {
+		t.Errorf("expected exit code 1, got %d", exitCode)
+	}
+	if !strings.Contains(errOutput, "is not a valid OKF v0.2 bundle") {
+		t.Errorf("expected validation rollback error message, got: %s", errOutput)
+	}
+
+	// Verify rollback: vendor dir must not exist
+	vendorDir := filepath.Join(workDir, ".okf", "vendor", "bad", "bundle")
+	if _, err := os.Stat(vendorDir); !os.IsNotExist(err) {
+		t.Errorf("expected vendor directory to be rolled back/deleted, but found: %s", vendorDir)
+	}
+
+	// okf.lock must not contain bad/bundle
+	lockFile := filepath.Join(workDir, "okf.lock")
+	if _, err := os.Stat(lockFile); err == nil {
+		content, _ := os.ReadFile(lockFile)
+		if strings.Contains(string(content), "bad/bundle") {
+			t.Errorf("expected okf.lock to not contain bad/bundle")
+		}
+	}
+}
+
