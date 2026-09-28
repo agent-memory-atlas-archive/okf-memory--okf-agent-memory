@@ -6,10 +6,12 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/okf-memory/okf-agent-memory/pkg/registry"
@@ -26,7 +28,7 @@ func TestCmdPull_ScopedSuccess(t *testing.T) {
 	gw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gw)
 	content := "# Django Rules"
-	tw.WriteHeader(&tar.Header{Name: "index.md", Mode: 0644, Size: int64(len(content))})
+	tw.WriteHeader(&tar.Header{Name: "index.md", Mode: 0o644, Size: int64(len(content))})
 	tw.Write([]byte(content))
 	tw.Close()
 	gw.Close()
@@ -94,3 +96,42 @@ func TestCmdPull_ScopedSuccess(t *testing.T) {
 	}
 }
 
+func TestCmdVendor_RemoveNonExistent(t *testing.T) {
+	workDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir)
+
+	vendorCmd, ok := FindCommand("vendor")
+	if !ok {
+		t.Fatalf("vendor command not found")
+	}
+
+	var exitCode int
+	origExit := exitFunc
+	defer func() { exitFunc = origExit }()
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	r, w, _ := os.Pipe()
+	origStderr := os.Stderr
+	os.Stderr = w
+	defer func() { os.Stderr = origStderr }()
+
+	vendorCmd.Run([]string{"remove", "non-existent/bundle"})
+	w.Close()
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	errOutput := buf.String()
+
+	if exitCode != 1 {
+		t.Errorf("expected exit code 1, got %d", exitCode)
+	}
+	if !strings.Contains(errOutput, "vendor bundle \"non-existent/bundle\" is not installed") {
+		t.Errorf("expected error message about bundle not installed, got: %s", errOutput)
+	}
+}

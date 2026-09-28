@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/okf-memory/okf-agent-memory/pkg/lock"
 )
+
+var exitFunc = os.Exit
 
 func printVendorUsage() {
 	fmt.Println(`Usage:
@@ -37,15 +40,46 @@ func cmdVendor(args []string) {
 
 	case "remove":
 		if len(args) < 2 {
-			fmt.Println("Usage: okf vendor remove <bundle-id>")
-			os.Exit(1)
+			fmt.Fprintln(os.Stderr, "Usage: okf vendor remove <bundle-id>")
+			exitFunc(1)
+			return
 		}
 		bundleID := args[1]
 		vendorDir := filepath.Join(".okf", "vendor", filepath.FromSlash(bundleID))
-		_ = os.RemoveAll(vendorDir)
+
+		dirExists := false
+		if info, err := os.Stat(vendorDir); err == nil && info.IsDir() {
+			dirExists = true
+		}
 
 		lf, err := lock.ReadLockfile("okf.lock")
+		lockHasBundle := false
 		if err == nil {
+			for _, b := range lf.Bundles {
+				if b.ID == bundleID {
+					lockHasBundle = true
+					break
+				}
+			}
+		}
+
+		if !dirExists && !lockHasBundle {
+			fmt.Fprintf(os.Stderr, "Error: vendor bundle %q is not installed\n", bundleID)
+			exitFunc(1)
+			return
+		}
+
+		if dirExists {
+			_ = os.RemoveAll(vendorDir)
+			if strings.Contains(bundleID, "/") {
+				parentDir := filepath.Dir(vendorDir)
+				if entries, err := os.ReadDir(parentDir); err == nil && len(entries) == 0 {
+					_ = os.Remove(parentDir)
+				}
+			}
+		}
+
+		if lockHasBundle && lf != nil {
 			if lf.Remove(bundleID) {
 				_ = lock.WriteLockfile("okf.lock", lf)
 			}
