@@ -29,7 +29,7 @@ func makeTestTarGz(t *testing.T, files map[string]string) ([]byte, string) {
 	for name, content := range files {
 		hdr := &tar.Header{
 			Name: name,
-			Mode: 0644,
+			Mode: 0o644,
 			Size: int64(len(content)),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {

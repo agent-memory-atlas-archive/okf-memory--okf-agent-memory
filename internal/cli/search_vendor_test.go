@@ -34,10 +34,10 @@ func TestSearch_VendorLayeringAndShadowing(t *testing.T) {
 
 	// 1. Create primary bundle in ./knowledge
 	projDir := filepath.Join(workDir, "knowledge")
-	if err := os.MkdirAll(filepath.Join(projDir, "decisions"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(projDir, "decisions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(projDir, "index.md"), []byte("# Project Index\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(projDir, "index.md"), []byte("# Project Index\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	shadowedProj := `---
@@ -47,16 +47,16 @@ governance: constraint
 ---
 Local project decision overrides vendor
 `
-	if err := os.WriteFile(filepath.Join(projDir, "decisions", "shadowed.md"), []byte(shadowedProj), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(projDir, "decisions", "shadowed.md"), []byte(shadowedProj), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// 2. Create vendor bundle in .okf/vendor/peter/django-5-rules
 	vendorDir := filepath.Join(workDir, ".okf", "vendor", "peter", "django-5-rules")
-	if err := os.MkdirAll(filepath.Join(vendorDir, "decisions"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(vendorDir, "decisions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(vendorDir, "index.md"), []byte("# Vendor Index\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vendorDir, "index.md"), []byte("# Vendor Index\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	shadowedVendor := `---
@@ -65,7 +65,7 @@ title: Vendor Shadowed Decision
 ---
 Vendor rule should be shadowed
 `
-	if err := os.WriteFile(filepath.Join(vendorDir, "decisions", "shadowed.md"), []byte(shadowedVendor), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vendorDir, "decisions", "shadowed.md"), []byte(shadowedVendor), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	vendorAuth := `---
@@ -74,7 +74,7 @@ title: Vendor Django Auth
 ---
 Use session authentication in Django 5
 `
-	if err := os.WriteFile(filepath.Join(vendorDir, "decisions", "auth.md"), []byte(vendorAuth), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vendorDir, "decisions", "auth.md"), []byte(vendorAuth), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

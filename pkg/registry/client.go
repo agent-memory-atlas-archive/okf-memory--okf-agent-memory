@@ -136,7 +136,7 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 		}
 	}
 
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return fmt.Errorf("cannot create vendor dir: %w", err)
 	}
 
@@ -164,11 +164,11 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 		destPath := filepath.Join(targetDir, cleanName)
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(destPath, 0755); err != nil {
+			if err := os.MkdirAll(destPath, 0o755); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 				return err
 			}
 			outFile, err := os.OpenFile(destPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, hdr.FileInfo().Mode())
