@@ -58,6 +58,10 @@ func cmdPull(args []string) {
 		return
 	}
 
+	if manifest.Version == "main" && (strings.HasPrefix(target, "github.com/") || strings.HasPrefix(target, "https://")) {
+		fmt.Fprintf(os.Stderr, "Warning: Pulling floating branch 'main'. Pin to @vX.Y.Z for reproducible builds.\n")
+	}
+
 	vendorDir := filepath.Join(".okf", "vendor", filepath.FromSlash(manifest.ID))
 	if _, err := os.Stat(vendorDir); err == nil && !*force {
 		fmt.Printf("Bundle %q is already installed in %s. Use --force to reinstall.\n", manifest.ID, vendorDir)

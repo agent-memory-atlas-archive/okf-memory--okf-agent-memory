@@ -48,7 +48,21 @@ func (c *Client) Resolve(slugOrURL string) (*BundleManifest, error) {
 	}
 
 	cleanSlug := strings.Trim(strings.TrimSpace(slugOrURL), "/")
-	endpoint := fmt.Sprintf("%s/bundles/%s.json", c.BaseURL, cleanSlug)
+	var slug, version string
+	if idx := strings.Index(cleanSlug, "@"); idx != -1 {
+		slug = cleanSlug[:idx]
+		version = cleanSlug[idx+1:]
+	} else {
+		slug = cleanSlug
+	}
+
+	// Try versioned endpoint first if specific version requested (e.g. bundles/nextjs-15-1.0.0.json)
+	var endpoint string
+	if version != "" {
+		endpoint = fmt.Sprintf("%s/bundles/%s-%s.json", c.BaseURL, slug, version)
+	} else {
+		endpoint = fmt.Sprintf("%s/bundles/%s.json", c.BaseURL, slug)
+	}
 
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
@@ -61,6 +75,31 @@ func (c *Client) Resolve(slugOrURL string) (*BundleManifest, error) {
 		return nil, fmt.Errorf("registry connection error: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// If versioned endpoint was 404, fallback to base bundles/<slug>.json
+	if resp.StatusCode == http.StatusNotFound && version != "" {
+		baseEndpoint := fmt.Sprintf("%s/bundles/%s.json", c.BaseURL, slug)
+		baseReq, err := http.NewRequest("GET", baseEndpoint, nil)
+		if err == nil {
+			baseReq.Header.Set("User-Agent", "okf-agent-memory-cli")
+			if baseResp, err := c.HTTPClient.Do(baseReq); err == nil {
+				defer baseResp.Body.Close()
+				if baseResp.StatusCode == http.StatusOK {
+					var m BundleManifest
+					if err := json.NewDecoder(baseResp.Body).Decode(&m); err == nil {
+						if m.Version != version {
+							return nil, fmt.Errorf("bundle %q version %s not found in registry (latest is %s)", slug, version, m.Version)
+						}
+						if strings.HasPrefix(m.DownloadURL, "/") {
+							m.DownloadURL = c.BaseURL + m.DownloadURL
+						}
+						return &m, nil
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("bundle %q (version %s) not found in registry %s", slug, version, c.BaseURL)
+	}
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("bundle %q not found in registry %s", cleanSlug, c.BaseURL)
@@ -82,6 +121,12 @@ func (c *Client) Resolve(slugOrURL string) (*BundleManifest, error) {
 }
 
 func (c *Client) resolveGitURL(rawURL string) (*BundleManifest, error) {
+	tag := ""
+	if idx := strings.Index(rawURL, "@"); idx != -1 {
+		tag = rawURL[idx+1:]
+		rawURL = rawURL[:idx]
+	}
+
 	parsedURL := rawURL
 	if !strings.HasPrefix(parsedURL, "http://") && !strings.HasPrefix(parsedURL, "https://") {
 		parsedURL = "https://" + parsedURL
@@ -98,10 +143,18 @@ func (c *Client) resolveGitURL(rawURL string) (*BundleManifest, error) {
 	owner, repo := parts[0], parts[1]
 	id := fmt.Sprintf("%s/%s", owner, repo)
 
-	archiveURL := fmt.Sprintf("https://github.com/%s/%s/archive/refs/heads/main.tar.gz", owner, repo)
+	var archiveURL string
+	version := tag
+	if tag != "" {
+		archiveURL = fmt.Sprintf("https://github.com/%s/%s/archive/refs/tags/%s.tar.gz", owner, repo, tag)
+	} else {
+		version = "main"
+		archiveURL = fmt.Sprintf("https://github.com/%s/%s/archive/refs/heads/main.tar.gz", owner, repo)
+	}
+
 	return &BundleManifest{
 		ID:          id,
-		Version:     "main",
+		Version:     version,
 		Hash:        "",
 		DownloadURL: archiveURL,
 	}, nil

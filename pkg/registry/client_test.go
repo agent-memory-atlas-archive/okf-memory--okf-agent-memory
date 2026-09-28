@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/okf-memory/okf-agent-memory/pkg/registry"
@@ -106,12 +107,31 @@ func TestClient_ResolveScopedAndTopLevel(t *testing.T) {
 		t.Fatalf("unexpected manifest ID: %s", manifestTop.ID)
 	}
 
-	// Test Git URL resolution
+	// Test Git URL resolution with default branch
 	gitManifest, err := client.Resolve("github.com/acme/my-bundle")
 	if err != nil {
 		t.Fatalf("Resolve git URL failed: %v", err)
 	}
-	if gitManifest.ID != "acme/my-bundle" {
-		t.Errorf("expected git ID acme/my-bundle, got %s", gitManifest.ID)
+	if gitManifest.ID != "acme/my-bundle" || gitManifest.Version != "main" {
+		t.Errorf("expected git ID acme/my-bundle with main, got %s / %s", gitManifest.ID, gitManifest.Version)
+	}
+
+	// Test Git URL resolution with immutable @tag
+	gitTagManifest, err := client.Resolve("github.com/acme/my-bundle@v2.0.0")
+	if err != nil {
+		t.Fatalf("Resolve git URL with tag failed: %v", err)
+	}
+	if gitTagManifest.Version != "v2.0.0" || !strings.Contains(gitTagManifest.DownloadURL, "refs/tags/v2.0.0.tar.gz") {
+		t.Errorf("expected git tag v2.0.0, got %+v", gitTagManifest)
+	}
+
+	// Test Registry bundle with @version
+	manifestVersioned, err := client.Resolve("nextjs-15@1.0.0")
+	if err != nil {
+		t.Fatalf("Resolve versioned failed: %v", err)
+	}
+	if manifestVersioned.ID != "nextjs-15" || manifestVersioned.Version != "1.0.0" {
+		t.Errorf("unexpected versioned manifest: %+v", manifestVersioned)
 	}
 }
+
