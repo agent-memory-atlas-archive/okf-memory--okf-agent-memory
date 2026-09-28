@@ -87,7 +87,7 @@ func (c *Client) Resolve(slugOrURL string) (*BundleManifest, error) {
 				if baseResp.StatusCode == http.StatusOK {
 					var m BundleManifest
 					if err := json.NewDecoder(baseResp.Body).Decode(&m); err == nil {
-						if m.Version != version {
+						if strings.TrimPrefix(m.Version, "v") != strings.TrimPrefix(version, "v") {
 							return nil, fmt.Errorf("bundle %q version %s not found in registry (latest is %s)", slug, version, m.Version)
 						}
 						if strings.HasPrefix(m.DownloadURL, "/") {
