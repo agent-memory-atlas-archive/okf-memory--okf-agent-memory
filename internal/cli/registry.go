@@ -16,22 +16,22 @@ type Command struct {
 }
 
 var (
-	commands []*Command
-	registry = make(map[string]*Command)
+	commands        []*Command
+	commandRegistry = make(map[string]*Command)
 )
 
 // Register registers a command into the global CLI command registry.
 func Register(c *Command) {
 	commands = append(commands, c)
-	registry[c.Name] = c
+	commandRegistry[c.Name] = c
 	for _, alias := range c.Aliases {
-		registry[alias] = c
+		commandRegistry[alias] = c
 	}
 }
 
 // FindCommand looks up a command by name or alias.
 func FindCommand(name string) (*Command, bool) {
-	c, ok := registry[name]
+	c, ok := commandRegistry[name]
 	return c, ok
 }
 
@@ -131,5 +131,17 @@ func init() {
 		Summary:    "Zero-knowledge sync and vault management (push, pull, sync, serve)",
 		PrintUsage: printHubUsage,
 		Run:        cmdHub,
+	})
+	Register(&Command{
+		Name:       "pull",
+		Summary:    "Pull and install an external knowledge bundle into .okf/vendor/",
+		PrintUsage: printPullUsage,
+		Run:        cmdPull,
+	})
+	Register(&Command{
+		Name:       "vendor",
+		Summary:    "Inspect and manage installed vendor bundles",
+		PrintUsage: printVendorUsage,
+		Run:        cmdVendor,
 	})
 }

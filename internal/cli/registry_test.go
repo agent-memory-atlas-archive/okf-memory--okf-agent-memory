@@ -20,6 +20,8 @@ func TestCommandRegistryLookup(t *testing.T) {
 		"agents",
 		"mcp",
 		"hub",
+		"pull",
+		"vendor",
 	}
 
 	for _, name := range expectedCommands {
@@ -62,6 +64,8 @@ func TestPrintUsageListsAllCommands(t *testing.T) {
 		"agents",
 		"mcp",
 		"hub",
+		"pull",
+		"vendor",
 		"--filter",
 		"--stale-within",
 	}
