@@ -22,6 +22,9 @@ type SearchResult struct {
 	Tags        []string `json:"tags,omitempty"`
 	Inbound     []string `json:"inbound,omitempty"`
 	Outbound    []string `json:"outbound,omitempty"`
+	Scope       Scope    `json:"scope,omitempty"`
+	Priority    int      `json:"priority,omitempty"`
+	Origin      string   `json:"origin,omitempty"`
 }
 
 func tokenize(s string) []string {

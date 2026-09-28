@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -159,6 +160,67 @@ func cmdSearch(args []string) {
 		os.Exit(1)
 	}
 
+	seenConcepts := make(map[string]bool)
+	for i := range results {
+		results[i].Scope = okf.ScopeProject
+		results[i].Priority = okf.PriorityProject
+		results[i].Origin = "local"
+		seenConcepts[results[i].ConceptID] = true
+	}
+	// Also mark all concepts in primary bundle as seen so they shadow any matching vendor concept IDs
+	for id := range b.Concepts {
+		seenConcepts[id] = true
+	}
+
+	// Discover and search vendor bundles if .okf/vendor exists
+	vendorRoot := filepath.Join(".okf", "vendor")
+	if info, err := os.Stat(vendorRoot); err == nil && info.IsDir() {
+		_ = filepath.Walk(vendorRoot, func(p string, fi os.FileInfo, err error) error {
+			if err != nil || !fi.IsDir() {
+				return nil
+			}
+			if _, err := os.Stat(filepath.Join(p, "index.md")); err == nil {
+				rel, _ := filepath.Rel(vendorRoot, p)
+				bundleID := filepath.ToSlash(rel)
+				vb, err := okf.LoadBundle(p)
+				if err == nil {
+					vResults, _ := vb.SearchAdvanced(okf.SearchOptions{
+						Query:       query,
+						TargetPath:  *forPath,
+						Limit:       *limit,
+						Filter:      *filter,
+						StaleWithin: staleWithin,
+					})
+					for _, vr := range vResults {
+						if !seenConcepts[vr.ConceptID] {
+							vr.Scope = okf.ScopeVendor
+							vr.Priority = okf.PriorityVendor
+							vr.Origin = fmt.Sprintf("vendor/%s", bundleID)
+							vr.ConceptID = fmt.Sprintf("okf://vendor/%s/%s", bundleID, vr.ConceptID)
+							results = append(results, vr)
+						}
+					}
+				}
+				return filepath.SkipDir
+			}
+			return nil
+		})
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Priority != results[j].Priority {
+			return results[i].Priority > results[j].Priority
+		}
+		if results[i].Score != results[j].Score {
+			return results[i].Score > results[j].Score
+		}
+		return results[i].ConceptID < results[j].ConceptID
+	})
+
+	if len(results) > *limit {
+		results = results[:*limit]
+	}
+
 	if *jsonOut {
 		data, _ := json.MarshalIndent(results, "", "  ")
 		fmt.Println(string(data))
@@ -191,8 +253,12 @@ func cmdSearch(args []string) {
 
 	for i, r := range results {
 		govBadge := fmt.Sprintf("[%s]", r.Governance)
-		fmt.Printf("%2d. %-12s [%.2f] %s (%s)\n    %s\n    Matches: %s\n\n",
-			i+1, govBadge, r.Score, r.ConceptID, r.Type, r.Description, strings.Join(r.MatchedOn, ", "))
+		scopeInfo := ""
+		if r.Scope == okf.ScopeVendor {
+			scopeInfo = fmt.Sprintf(" (%s)", r.Origin)
+		}
+		fmt.Printf("%2d. %-12s [%.2f] %s (%s)%s\n    %s\n    Matches: %s\n\n",
+			i+1, govBadge, r.Score, r.ConceptID, r.Type, scopeInfo, r.Description, strings.Join(r.MatchedOn, ", "))
 	}
 }
 
@@ -206,11 +272,26 @@ func cmdShow(args []string) {
 	}
 
 	rawID := strings.TrimSpace(args[0])
-	if err := okf.ValidateConceptID(rawID); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	normID := okf.NormalizeVendorLink(rawID)
+	var showScope okf.Scope
+	var showBundleID string
+	var conceptID string
+
+	if strings.HasPrefix(normID, "okf://") {
+		var parseErr error
+		showScope, showBundleID, conceptID, parseErr = okf.ParseURI(normID)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", parseErr)
+			os.Exit(1)
+		}
+	} else {
+		if err := okf.ValidateConceptID(rawID); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		conceptID = strings.TrimSuffix(rawID, ".md")
 	}
-	conceptID := strings.TrimSuffix(rawID, ".md")
+
 	var subArgs []string
 	if len(args) > 1 {
 		subArgs = args[1:]
@@ -222,6 +303,10 @@ func cmdShow(args []string) {
 
 	bundleDir, flagArgs := defaultBundle(subArgs)
 	_ = fs.Parse(flagArgs)
+
+	if showScope == okf.ScopeVendor {
+		bundleDir = filepath.Join(".okf", "vendor", filepath.FromSlash(showBundleID))
+	}
 
 	b, err := okf.LoadBundle(bundleDir)
 	if err != nil {

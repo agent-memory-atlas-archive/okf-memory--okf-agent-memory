@@ -319,3 +319,38 @@ Runs the embedded blind CAS and atomic head pointer server locally on the specif
 ```bash
 okf hub serve [-port 8080] [-storage <dir>]
 ```
+
+---
+
+### 11. `pull`
+
+Pulls and installs an external knowledge bundle into `.okf/vendor/<bundle-id>/` and updates `okf.lock`.
+
+```bash
+okf pull <bundle-id|git-url> [--registry <url>] [--force]
+```
+
+* **Arguments**:
+  * `<bundle-id>`: Official seed ID (e.g. `nextjs-15`, `go-concurrency`) or scoped community ID (e.g. `peter/django-5-rules`).
+  * `<git-url>`: Git repository URL (e.g. `github.com/acme/agent-rules`).
+* **Flags**:
+  * `--registry <url>`: Override default registry endpoint (default: `https://registry.okf-memory.dev`).
+  * `--force`: Overwrite existing vendor installation if already installed.
+
+---
+
+### 12. `vendor`
+
+Inspects and manages installed vendor bundles in `.okf/vendor/`.
+
+```bash
+okf vendor list
+okf vendor remove <bundle-id>
+```
+
+#### Multi-Scope Layering & `okf://` Cross-Scope Linking
+
+When external bundles are installed via `okf pull`:
+1. **Precedence & Shadowing:** Concepts in `scope: project` (`./knowledge`, priority 100) always shadow concepts with identical IDs in `scope: vendor` (`.okf/vendor/`, priority 70).
+2. **Cross-Scope Links:** Reference vendor concepts hermetically via `okf://vendor/<bundle-id>/<concept-id>` or shorthand `@vendor/<bundle-id>/<concept-id>.md`. Bundle validation (`okf validate --strict`) treats `okf://` and `@vendor/` as external links, guaranteeing 0 broken links in standalone CI.
+
