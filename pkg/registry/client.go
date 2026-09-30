@@ -195,6 +195,47 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 		return fmt.Errorf("cannot create vendor dir: %w", err)
 	}
 
+	grPre, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("failed to decompress gzip: %w", err)
+	}
+	defer grPre.Close()
+
+	// Pre-scan headers to determine if bundle uses standard DMAA knowledge/ directory
+	// and whether files are wrapped in a single root directory (e.g. GitHub archive repo-main/).
+	hasKnowledgeDir := false
+	rootWrapper := ""
+	firstRootChecked := false
+
+	trPre := tar.NewReader(grPre)
+	for {
+		hdr, err := trPre.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("tar pre-scan error: %w", err)
+		}
+		cleanName := filepath.ToSlash(filepath.Clean(hdr.Name))
+		if cleanName == "." || cleanName == ".." || strings.HasPrefix(cleanName, "../") {
+			continue
+		}
+
+		parts := strings.Split(cleanName, "/")
+		if !firstRootChecked {
+			if len(parts) > 1 || hdr.Typeflag == tar.TypeDir {
+				rootWrapper = parts[0]
+			}
+			firstRootChecked = true
+		} else if rootWrapper != "" && parts[0] != rootWrapper {
+			rootWrapper = ""
+		}
+
+		if cleanName == "knowledge/index.md" || strings.HasSuffix(cleanName, "/knowledge/index.md") {
+			hasKnowledgeDir = true
+		}
+	}
+
 	gr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("failed to decompress gzip: %w", err)
@@ -211,12 +252,44 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 			return fmt.Errorf("tar extract error: %w", err)
 		}
 
-		cleanName := filepath.Clean(hdr.Name)
-		if strings.HasPrefix(cleanName, "..") || filepath.IsAbs(cleanName) {
+		cleanName := filepath.ToSlash(filepath.Clean(hdr.Name))
+		if cleanName == "." || cleanName == ".." || strings.HasPrefix(cleanName, "../") {
 			continue
 		}
 
-		destPath := filepath.Join(targetDir, cleanName)
+		var relDest string
+		if hasKnowledgeDir {
+			// Extract only contents of knowledge/ directory; skip all non-knowledge repo files
+			idx := strings.Index(cleanName, "/knowledge/")
+			if idx != -1 {
+				relDest = cleanName[idx+len("/knowledge/"):]
+			} else if strings.HasPrefix(cleanName, "knowledge/") {
+				relDest = cleanName[len("knowledge/"):]
+			} else {
+				continue
+			}
+		} else {
+			// Pure bundle fallback: strip single root wrapper (e.g. repo-main/) if present
+			if rootWrapper != "" {
+				if cleanName == rootWrapper {
+					continue
+				}
+				if strings.HasPrefix(cleanName, rootWrapper+"/") {
+					relDest = cleanName[len(rootWrapper)+1:]
+				} else {
+					relDest = cleanName
+				}
+			} else {
+				relDest = cleanName
+			}
+		}
+
+		relDest = filepath.Clean(relDest)
+		if relDest == "" || relDest == "." || relDest == ".." || strings.HasPrefix(relDest, "..") || filepath.IsAbs(relDest) {
+			continue
+		}
+
+		destPath := filepath.Join(targetDir, filepath.FromSlash(relDest))
 		switch hdr.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(destPath, 0o755); err != nil {
@@ -235,46 +308,6 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 				return err
 			}
 			outFile.Close()
-		}
-	}
-
-	// 1. Flatten single wrapper root directory if present (e.g. GitHub archive prefixes like repo-main/)
-	entries, err := os.ReadDir(targetDir)
-	if err == nil && len(entries) == 1 && entries[0].IsDir() {
-		subDir := filepath.Join(targetDir, entries[0].Name())
-		subEntries, err := os.ReadDir(subDir)
-		if err == nil {
-			for _, se := range subEntries {
-				_ = os.Rename(filepath.Join(subDir, se.Name()), filepath.Join(targetDir, se.Name()))
-			}
-			_ = os.Remove(subDir)
-		}
-	}
-
-	// 2. Promote knowledge/ directory to vendor root if present (standard DMAA repo layout)
-	if _, err := os.Stat(filepath.Join(targetDir, "index.md")); os.IsNotExist(err) {
-		kDir := filepath.Join(targetDir, "knowledge")
-		if _, err := os.Stat(filepath.Join(kDir, "index.md")); err == nil {
-			kEntries, err := os.ReadDir(kDir)
-			if err == nil {
-				tmpKDir, err := os.MkdirTemp("", "okf-kpromote-*")
-				if err == nil {
-					for _, ke := range kEntries {
-						_ = os.Rename(filepath.Join(kDir, ke.Name()), filepath.Join(tmpKDir, ke.Name()))
-					}
-					// Remove remaining repo files from targetDir (README.md, .github, etc.)
-					allEntries, _ := os.ReadDir(targetDir)
-					for _, ae := range allEntries {
-						_ = os.RemoveAll(filepath.Join(targetDir, ae.Name()))
-					}
-					// Move promoted knowledge contents into targetDir
-					promotedEntries, _ := os.ReadDir(tmpKDir)
-					for _, pe := range promotedEntries {
-						_ = os.Rename(filepath.Join(tmpKDir, pe.Name()), filepath.Join(targetDir, pe.Name()))
-					}
-					_ = os.RemoveAll(tmpKDir)
-				}
-			}
 		}
 	}
 
