@@ -238,18 +238,41 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 		}
 	}
 
-	// Flatten wrapping root directory if present (e.g. GitHub archive prefixes like repo-main/)
+	// 1. Flatten single wrapper root directory if present (e.g. GitHub archive prefixes like repo-main/)
+	entries, err := os.ReadDir(targetDir)
+	if err == nil && len(entries) == 1 && entries[0].IsDir() {
+		subDir := filepath.Join(targetDir, entries[0].Name())
+		subEntries, err := os.ReadDir(subDir)
+		if err == nil {
+			for _, se := range subEntries {
+				_ = os.Rename(filepath.Join(subDir, se.Name()), filepath.Join(targetDir, se.Name()))
+			}
+			_ = os.Remove(subDir)
+		}
+	}
+
+	// 2. Promote knowledge/ directory to vendor root if present (standard DMAA repo layout)
 	if _, err := os.Stat(filepath.Join(targetDir, "index.md")); os.IsNotExist(err) {
-		entries, err := os.ReadDir(targetDir)
-		if err == nil && len(entries) == 1 && entries[0].IsDir() {
-			subDir := filepath.Join(targetDir, entries[0].Name())
-			if _, err := os.Stat(filepath.Join(subDir, "index.md")); err == nil {
-				subEntries, err := os.ReadDir(subDir)
+		kDir := filepath.Join(targetDir, "knowledge")
+		if _, err := os.Stat(filepath.Join(kDir, "index.md")); err == nil {
+			kEntries, err := os.ReadDir(kDir)
+			if err == nil {
+				tmpKDir, err := os.MkdirTemp("", "okf-kpromote-*")
 				if err == nil {
-					for _, se := range subEntries {
-						_ = os.Rename(filepath.Join(subDir, se.Name()), filepath.Join(targetDir, se.Name()))
+					for _, ke := range kEntries {
+						_ = os.Rename(filepath.Join(kDir, ke.Name()), filepath.Join(tmpKDir, ke.Name()))
 					}
-					_ = os.Remove(subDir)
+					// Remove remaining repo files from targetDir (README.md, .github, etc.)
+					allEntries, _ := os.ReadDir(targetDir)
+					for _, ae := range allEntries {
+						_ = os.RemoveAll(filepath.Join(targetDir, ae.Name()))
+					}
+					// Move promoted knowledge contents into targetDir
+					promotedEntries, _ := os.ReadDir(tmpKDir)
+					for _, pe := range promotedEntries {
+						_ = os.Rename(filepath.Join(tmpKDir, pe.Name()), filepath.Join(targetDir, pe.Name()))
+					}
+					_ = os.RemoveAll(tmpKDir)
 				}
 			}
 		}

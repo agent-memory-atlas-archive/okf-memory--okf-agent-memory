@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -132,6 +133,69 @@ func TestClient_ResolveScopedAndTopLevel(t *testing.T) {
 	}
 	if manifestVersioned.ID != "nextjs-15" || manifestVersioned.Version != "1.0.0" {
 		t.Errorf("unexpected versioned manifest: %+v", manifestVersioned)
+	}
+}
+
+func TestClient_DownloadAndExtract_KnowledgePromotion(t *testing.T) {
+	// Simulate a GitHub archive with repo-main/ prefix, standard README, and knowledge/ bundle
+	tarData, hash := makeTestTarGz(t, map[string]string{
+		"my-repo-main/README.md":                 "# My Human Project README",
+		"my-repo-main/LICENSE":                   "MIT License",
+		"my-repo-main/knowledge/index.md":        "# Promoted Knowledge Index",
+		"my-repo-main/knowledge/decisions/adr.md": "---\ntype: Decision\ntitle: ADR\n---\nDecision body",
+	})
+
+	client := registry.NewClient("https://registry.okf-memory.dev")
+	client.HTTPClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "200 OK",
+			Header:     make(http.Header),
+			Body:       io.NopCloser(bytes.NewReader(tarData)),
+		}
+		resp.Header.Set("Content-Type", "application/gzip")
+		return resp, nil
+	})
+
+	manifest := &registry.BundleManifest{
+		ID:          "acme/my-repo",
+		Version:     "main",
+		Hash:        hash,
+		DownloadURL: "https://github.com/acme/my-repo/archive.tar.gz",
+	}
+
+	targetDir := filepath.Join(t.TempDir(), "vendor", "acme", "my-repo")
+	if err := client.DownloadAndExtract(manifest, targetDir); err != nil {
+		t.Fatalf("DownloadAndExtract failed: %v", err)
+	}
+
+	// 1. Verify index.md was promoted to vendor root
+	idxData, err := os.ReadFile(filepath.Join(targetDir, "index.md"))
+	if err != nil {
+		t.Fatalf("expected promoted index.md in targetDir: %v", err)
+	}
+	if !bytes.Contains(idxData, []byte("# Promoted Knowledge Index")) {
+		t.Errorf("unexpected index.md content: %s", string(idxData))
+	}
+
+	// 2. Verify decisions/adr.md is at vendor root
+	decData, err := os.ReadFile(filepath.Join(targetDir, "decisions", "adr.md"))
+	if err != nil {
+		t.Fatalf("expected promoted decisions/adr.md in targetDir: %v", err)
+	}
+	if !bytes.Contains(decData, []byte("Decision body")) {
+		t.Errorf("unexpected decisions/adr.md content: %s", string(decData))
+	}
+
+	// 3. Verify non-knowledge repository files were removed
+	if _, err := os.Stat(filepath.Join(targetDir, "README.md")); !os.IsNotExist(err) {
+		t.Errorf("expected README.md to be cleaned up from vendor directory, but it exists")
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "LICENSE")); !os.IsNotExist(err) {
+		t.Errorf("expected LICENSE to be cleaned up from vendor directory, but it exists")
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "knowledge")); !os.IsNotExist(err) {
+		t.Errorf("expected knowledge/ directory to be promoted and removed, but it exists")
 	}
 }
 
