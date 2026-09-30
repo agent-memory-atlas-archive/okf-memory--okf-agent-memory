@@ -324,22 +324,35 @@ okf hub serve [-port 8080] [-storage <dir>]
 
 ### 11. `pull`
 
-Pulls and installs an external knowledge bundle into `.okf/vendor/<bundle-id>/` and updates `okf.lock`.
+Pulls and installs an external knowledge bundle into `.okf/vendor/<bundle-id>/` and updates `okf.lock`. If invoked without arguments, restores all bundles declared in `okf.lock`.
 
 ```bash
-okf pull <bundle-id|git-url> [--registry <url>] [--force]
+okf pull [<bundle-id|git-url>] [--registry <url>] [--force]
 ```
 
 * **Arguments**:
-  * `<bundle-id>`: Official seed ID (e.g. `nextjs-15`, `go-concurrency`) or scoped community ID (e.g. `peter/django-5-rules`).
-  * `<git-url>`: Git repository URL (e.g. `github.com/acme/agent-rules`).
+  * `[<bundle-id|git-url>]`: Optional bundle ID (e.g. `nextjs-15`, `peter/django-5-rules`) or Git URL (e.g. `github.com/acme/agent-rules@v1.0.0`). When omitted, restores all bundles recorded in `okf.lock`.
 * **Flags**:
   * `--registry <url>`: Override default registry endpoint (default: `https://registry.okf-memory.dev`).
   * `--force`: Overwrite existing vendor installation if already installed.
 
 ---
 
-### 12. `vendor`
+### 12. `restore`
+
+Restores and verifies all vendor bundles declared in `okf.lock` into `.okf/vendor/<bundle-id>/`. Skips already installed bundles unless `--force` is specified.
+
+```bash
+okf restore [--registry <url>] [--force]
+```
+
+* **Flags**:
+  * `--registry <url>`: Override default registry endpoint (default: `https://registry.okf-memory.dev`).
+  * `--force`: Reinstall all bundles even if already present in `.okf/vendor/`.
+
+---
+
+### 13. `vendor`
 
 Inspects and manages installed vendor bundles in `.okf/vendor/`.
 
@@ -347,6 +360,8 @@ Inspects and manages installed vendor bundles in `.okf/vendor/`.
 okf vendor list
 okf vendor remove <bundle-id>
 ```
+
+* **`vendor remove <bundle-id>`**: Uninstalls the vendor bundle matching the exact `<bundle-id>`, removes its directory under `.okf/vendor/<bundle-id>/`, updates `okf.lock` (deleting `okf.lock` if no bundles remain), and prevents accidental deletion of namespace parent directories.
 
 #### Multi-Scope Layering & `okf://` Cross-Scope Linking
 

@@ -18,9 +18,9 @@ func captureOutput(f func()) string {
 	}()
 
 	f()
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	return buf.String()
 }
 
@@ -30,7 +30,7 @@ func TestSearch_VendorLayeringAndShadowing(t *testing.T) {
 	if err := os.Chdir(workDir); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// 1. Create primary bundle in ./knowledge
 	projDir := filepath.Join(workDir, "knowledge")

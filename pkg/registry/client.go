@@ -74,7 +74,7 @@ func (c *Client) Resolve(slugOrURL string) (*BundleManifest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("registry connection error: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// If versioned endpoint was 404, fallback to base bundles/<slug>.json
 	if resp.StatusCode == http.StatusNotFound && version != "" {
@@ -83,7 +83,7 @@ func (c *Client) Resolve(slugOrURL string) (*BundleManifest, error) {
 		if err == nil {
 			baseReq.Header.Set("User-Agent", "okf-agent-memory-cli")
 			if baseResp, err := c.HTTPClient.Do(baseReq); err == nil {
-				defer baseResp.Body.Close()
+				defer func() { _ = baseResp.Body.Close() }()
 				if baseResp.StatusCode == http.StatusOK {
 					var m BundleManifest
 					if err := json.NewDecoder(baseResp.Body).Decode(&m); err == nil {
@@ -171,7 +171,7 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 	if err != nil {
 		return fmt.Errorf("failed to download bundle: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bundle download failed with HTTP %s", resp.Status)
@@ -199,7 +199,7 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 	if err != nil {
 		return fmt.Errorf("failed to decompress gzip: %w", err)
 	}
-	defer grPre.Close()
+	defer func() { _ = grPre.Close() }()
 
 	// Pre-scan headers to determine if bundle uses standard DMAA knowledge/ directory
 	// and whether files are wrapped in a single root directory (e.g. GitHub archive repo-main/).
@@ -240,7 +240,7 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 	if err != nil {
 		return fmt.Errorf("failed to decompress gzip: %w", err)
 	}
-	defer gr.Close()
+	defer func() { _ = gr.Close() }()
 
 	tr := tar.NewReader(gr)
 	for {
@@ -290,24 +290,33 @@ func (c *Client) DownloadAndExtract(manifest *BundleManifest, targetDir string) 
 		}
 
 		destPath := filepath.Join(targetDir, filepath.FromSlash(relDest))
+		cleanDestPath := filepath.Clean(destPath)
+		cleanTargetDir := filepath.Clean(targetDir)
+		if !strings.HasPrefix(cleanDestPath, cleanTargetDir+string(filepath.Separator)) && cleanDestPath != cleanTargetDir {
+			return fmt.Errorf("path traversal attempt: %s", relDest)
+		}
+
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(destPath, 0o755); err != nil {
+			if err := os.MkdirAll(cleanDestPath, 0o755); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(cleanDestPath), 0o755); err != nil {
 				return err
 			}
-			outFile, err := os.OpenFile(destPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, hdr.FileInfo().Mode())
+			// #nosec G304 -- cleanDestPath is strictly verified to reside within cleanTargetDir
+			outFile, err := os.OpenFile(cleanDestPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, hdr.FileInfo().Mode())
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(outFile, tr); err != nil {
-				outFile.Close()
+			// #nosec G110 -- bounded extraction limit (50MB) mitigates decompression bombs
+			const maxExtractBytes = 50 * 1024 * 1024
+			if _, err := io.Copy(outFile, io.LimitReader(tr, maxExtractBytes)); err != nil {
+				_ = outFile.Close()
 				return err
 			}
-			outFile.Close()
+			_ = outFile.Close()
 		}
 	}
 

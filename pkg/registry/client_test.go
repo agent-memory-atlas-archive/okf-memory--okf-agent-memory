@@ -41,8 +41,8 @@ func makeTestTarGz(t *testing.T, files map[string]string) ([]byte, string) {
 			t.Fatal(err)
 		}
 	}
-	tw.Close()
-	gw.Close()
+	_ = tw.Close()
+	_ = gw.Close()
 
 	data := buf.Bytes()
 	hash := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
@@ -60,13 +60,13 @@ func TestClient_ResolveScopedAndTopLevel(t *testing.T) {
 		switch r.URL.Path {
 		case "/bundles/peter/django-5-rules.json":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"id":"peter/django-5-rules","version":"1.0.0","hash":%q,"download_url":"/downloads/django.tar.gz"}`, hash)
+			_, _ = fmt.Fprintf(w, `{"id":"peter/django-5-rules","version":"1.0.0","hash":%q,"download_url":"/downloads/django.tar.gz"}`, hash)
 		case "/bundles/nextjs-15.json":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"id":"nextjs-15","version":"1.0.0","hash":%q,"download_url":"/downloads/nextjs.tar.gz"}`, hash)
+			_, _ = fmt.Fprintf(w, `{"id":"nextjs-15","version":"1.0.0","hash":%q,"download_url":"/downloads/nextjs.tar.gz"}`, hash)
 		case "/downloads/django.tar.gz":
 			w.Header().Set("Content-Type", "application/gzip")
-			w.Write(tarData)
+			_, _ = w.Write(tarData)
 		default:
 			http.NotFound(w, r)
 		}
@@ -139,9 +139,9 @@ func TestClient_ResolveScopedAndTopLevel(t *testing.T) {
 func TestClient_DownloadAndExtract_KnowledgePromotion(t *testing.T) {
 	// Simulate a GitHub archive with repo-main/ prefix, standard README, and knowledge/ bundle
 	tarData, hash := makeTestTarGz(t, map[string]string{
-		"my-repo-main/README.md":                 "# My Human Project README",
-		"my-repo-main/LICENSE":                   "MIT License",
-		"my-repo-main/knowledge/index.md":        "# Promoted Knowledge Index",
+		"my-repo-main/README.md":                  "# My Human Project README",
+		"my-repo-main/LICENSE":                    "MIT License",
+		"my-repo-main/knowledge/index.md":         "# Promoted Knowledge Index",
 		"my-repo-main/knowledge/decisions/adr.md": "---\ntype: Decision\ntitle: ADR\n---\nDecision body",
 	})
 
@@ -198,4 +198,3 @@ func TestClient_DownloadAndExtract_KnowledgePromotion(t *testing.T) {
 		t.Errorf("expected knowledge/ directory to be promoted and removed, but it exists")
 	}
 }
-

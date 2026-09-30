@@ -19,13 +19,17 @@ var newRegistryClient = func(baseURL string) *registry.Client {
 
 func printPullUsage() {
 	fmt.Println(`Usage:
-  okf pull <bundle-id|git-url> [flags]
+  okf pull [<bundle-id|git-url>] [flags]
+
+Pulls and installs an external knowledge bundle into .okf/vendor/ and updates okf.lock.
+If no bundle is specified, restores all bundles declared in okf.lock.
 
 Flags:
   --registry <url>   Override canonical registry endpoint (default: https://registry.okf-memory.dev)
   --force            Overwrite existing vendor installation if present
 
 Examples:
+  okf pull
   okf pull nextjs-15
   okf pull peter/django-5-rules
   okf pull github.com/acme/agent-rules`)
@@ -42,8 +46,12 @@ func cmdPull(args []string) {
 	}
 
 	if fs.NArg() < 1 {
-		printPullUsage()
-		exitFunc(1)
+		if _, err := os.Stat("okf.lock"); os.IsNotExist(err) {
+			fmt.Fprintln(os.Stderr, "Error: okf.lock not found. Specify a bundle to pull (e.g. 'okf pull <bundle-id>') or run in a workspace with an existing okf.lock.")
+			exitFunc(1)
+			return
+		}
+		runRestore(*registryURL, *force)
 		return
 	}
 

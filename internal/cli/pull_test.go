@@ -28,20 +28,21 @@ func TestCmdPull_ScopedSuccess(t *testing.T) {
 	gw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gw)
 	content := "# Django Rules"
-	tw.WriteHeader(&tar.Header{Name: "index.md", Mode: 0o644, Size: int64(len(content))})
-	tw.Write([]byte(content))
-	tw.Close()
-	gw.Close()
+	_ = tw.WriteHeader(&tar.Header{Name: "index.md", Mode: 0o644, Size: int64(len(content))})
+	_, _ = tw.Write([]byte(content))
+	_ = tw.Close()
+	_ = gw.Close()
 	data := buf.Bytes()
 	hash := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
 
 	mockURL := "https://mock.registry.okf-memory.dev"
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/bundles/peter/django-5-rules.json" {
-			fmt.Fprintf(w, `{"id":"peter/django-5-rules","version":"1.0.0","hash":%q,"download_url":"/bundle.tar.gz"}`, hash)
-		} else if r.URL.Path == "/bundle.tar.gz" {
-			w.Write(data)
-		} else {
+		switch r.URL.Path {
+		case "/bundles/peter/django-5-rules.json":
+			_, _ = fmt.Fprintf(w, `{"id":"peter/django-5-rules","version":"1.0.0","hash":%q,"download_url":"/bundle.tar.gz"}`, hash)
+		case "/bundle.tar.gz":
+			_, _ = w.Write(data)
+		default:
 			http.NotFound(w, r)
 		}
 	})
@@ -63,7 +64,7 @@ func TestCmdPull_ScopedSuccess(t *testing.T) {
 	if err := os.Chdir(workDir); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	cmd, ok := FindCommand("pull")
 	if !ok {
@@ -102,7 +103,7 @@ func TestCmdVendor_RemoveNonExistent(t *testing.T) {
 	if err := os.Chdir(workDir); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	vendorCmd, ok := FindCommand("vendor")
 	if !ok {
@@ -122,10 +123,10 @@ func TestCmdVendor_RemoveNonExistent(t *testing.T) {
 	defer func() { os.Stderr = origStderr }()
 
 	vendorCmd.Run([]string{"remove", "non-existent/bundle"})
-	w.Close()
+	_ = w.Close()
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	errOutput := buf.String()
 
 	if exitCode != 1 {
@@ -142,20 +143,21 @@ func TestCmdPull_InvalidBundleRollback(t *testing.T) {
 	gw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gw)
 	content := "some random file"
-	tw.WriteHeader(&tar.Header{Name: "random.txt", Mode: 0o644, Size: int64(len(content))})
-	tw.Write([]byte(content))
-	tw.Close()
-	gw.Close()
+	_ = tw.WriteHeader(&tar.Header{Name: "random.txt", Mode: 0o644, Size: int64(len(content))})
+	_, _ = tw.Write([]byte(content))
+	_ = tw.Close()
+	_ = gw.Close()
 	data := buf.Bytes()
 	hash := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
 
 	mockURL := "https://mock.registry.okf-memory.dev"
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/bundles/bad/bundle.json" {
-			fmt.Fprintf(w, `{"id":"bad/bundle","version":"1.0.0","hash":%q,"download_url":"/bundle.tgz"}`, hash)
-		} else if r.URL.Path == "/bundle.tgz" {
-			w.Write(data)
-		} else {
+		switch r.URL.Path {
+		case "/bundles/bad/bundle.json":
+			_, _ = fmt.Fprintf(w, `{"id":"bad/bundle","version":"1.0.0","hash":%q,"download_url":"/bundle.tgz"}`, hash)
+		case "/bundle.tgz":
+			_, _ = w.Write(data)
+		default:
 			http.NotFound(w, r)
 		}
 	})
@@ -177,7 +179,7 @@ func TestCmdPull_InvalidBundleRollback(t *testing.T) {
 	if err := os.Chdir(workDir); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	var exitCode int
 	origExit := exitFunc
@@ -197,10 +199,10 @@ func TestCmdPull_InvalidBundleRollback(t *testing.T) {
 	}
 
 	cmd.Run([]string{"--registry", mockURL, "bad/bundle"})
-	w.Close()
+	_ = w.Close()
 
 	var errBuf bytes.Buffer
-	io.Copy(&errBuf, r)
+	_, _ = io.Copy(&errBuf, r)
 	errOutput := errBuf.String()
 
 	if exitCode != 1 {
@@ -225,4 +227,3 @@ func TestCmdPull_InvalidBundleRollback(t *testing.T) {
 		}
 	}
 }
-

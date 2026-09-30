@@ -47,14 +47,9 @@ func cmdVendor(args []string) {
 		bundleID := args[1]
 		vendorDir := filepath.Join(".okf", "vendor", filepath.FromSlash(bundleID))
 
-		dirExists := false
-		if info, err := os.Stat(vendorDir); err == nil && info.IsDir() {
-			dirExists = true
-		}
-
 		lf, err := lock.ReadLockfile("okf.lock")
 		lockHasBundle := false
-		if err == nil {
+		if err == nil && lf != nil {
 			for _, b := range lf.Bundles {
 				if b.ID == bundleID {
 					lockHasBundle = true
@@ -63,13 +58,35 @@ func cmdVendor(args []string) {
 			}
 		}
 
-		if !dirExists && !lockHasBundle {
-			fmt.Fprintf(os.Stderr, "Error: vendor bundle %q is not installed\n", bundleID)
+		// A directory is only considered an installed bundle if it contains index.md.
+		// Subdirectories without index.md (e.g. parent namespace or organization dirs)
+		// are not valid bundles and must not be removed by partial matches.
+		isBundleDir := false
+		if info, err := os.Stat(vendorDir); err == nil && info.IsDir() {
+			if _, err := os.Stat(filepath.Join(vendorDir, "index.md")); err == nil {
+				isBundleDir = true
+			}
+		}
+
+		if !isBundleDir && !lockHasBundle {
+			var suggestions []string
+			if lf != nil {
+				for _, b := range lf.Bundles {
+					if strings.HasPrefix(b.ID, bundleID+"/") || strings.Contains(b.ID, bundleID) {
+						suggestions = append(suggestions, b.ID)
+					}
+				}
+			}
+			if len(suggestions) > 0 {
+				fmt.Fprintf(os.Stderr, "Error: vendor bundle %q is not installed. Did you mean %q?\n", bundleID, suggestions[0])
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: vendor bundle %q is not installed\n", bundleID)
+			}
 			exitFunc(1)
 			return
 		}
 
-		if dirExists {
+		if isBundleDir {
 			_ = os.RemoveAll(vendorDir)
 			if strings.Contains(bundleID, "/") {
 				parentDir := filepath.Dir(vendorDir)
@@ -81,7 +98,13 @@ func cmdVendor(args []string) {
 
 		if lockHasBundle && lf != nil {
 			if lf.Remove(bundleID) {
-				_ = lock.WriteLockfile("okf.lock", lf)
+				if len(lf.Bundles) == 0 {
+					_ = os.Remove("okf.lock")
+				} else {
+					if err := lock.WriteLockfile("okf.lock", lf); err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: failed to update okf.lock: %v\n", err)
+					}
+				}
 			}
 		}
 		fmt.Printf("Removed vendor bundle %s\n", bundleID)

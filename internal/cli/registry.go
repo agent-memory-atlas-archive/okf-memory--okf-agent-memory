@@ -139,6 +139,12 @@ func init() {
 		Run:        cmdPull,
 	})
 	Register(&Command{
+		Name:       "restore",
+		Summary:    "Restore vendor bundles from okf.lock",
+		PrintUsage: printRestoreUsage,
+		Run:        cmdRestore,
+	})
+	Register(&Command{
 		Name:       "vendor",
 		Summary:    "Inspect and manage installed vendor bundles",
 		PrintUsage: printVendorUsage,
