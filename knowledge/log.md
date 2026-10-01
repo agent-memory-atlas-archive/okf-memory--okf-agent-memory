@@ -2,7 +2,7 @@
 * **Creation**: Documented concept `convention/command-mutation-checklist.md` (CLI and MCP Command Modification Checklist).
 * **Update**: Documented the 4-tier Scope Specification Matrix, multi-scope search filtering (`--scope`), and hermetic external link validator guarantees in `architecture/registry-and-vendor-layering.md`.
 * **Refactoring**: Standardized vendor package references on clean `@<bundle-id>/<concept-id>` syntax (and `okf://@<bundle-id>/<concept-id>`), removing redundant `vendor/` prefixes and strictly routing unscoped targets to local project memory.
-* **Release**: Prepared version v0.5.0: OKF Registry integration (`registry.okf-memory.dev`), zero-dependency `okf.lock` manifest, multi-scope priority layering, `okf pull`, `okf restore`, `okf vendor`, multi-scope composite BM25 indexing, and hermetic `@` cross-scope linking.
+* **Release**: Published version v0.5.0: OKF Registry integration (`registry.okf-memory.dev`), zero-dependency `okf.lock` manifest, multi-scope priority layering, `okf pull`, `okf restore`, `okf vendor`, multi-scope composite BM25 indexing, and hermetic `@` cross-scope linking (closes #11).
 * **Update**: Linked `architecture/layers.md` to `architecture/registry-and-vendor-layering.md` (Multi-scope resolution and registry distribution expand the tooling and knowledge layers).
 * **Update**: Updated concept `roadmap/milestones.md` adding Phase 19 (OKF Registry & Multi-Scope Vendor Layering).
 * **Creation**: Documented concept `architecture/registry-and-vendor-layering.md` (OKF Registry Client, Dependency Locking, and Multi-Scope Vendor Layering).
