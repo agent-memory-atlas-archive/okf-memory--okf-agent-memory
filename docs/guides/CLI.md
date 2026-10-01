@@ -62,10 +62,11 @@ okf validate [bundle-path] [--strict] [--stale] [--drift] [--json]
 
 ### 2. `search`
 
-Searches concepts within a bundle using fast in-memory BM25 scoring across titles, descriptions, tags, IDs, and body text, filters by frontmatter metadata predicates, or discovers concepts governing a specific file path via `code_refs`.
+Searches concepts using fast in-memory BM25 scoring across titles, descriptions, tags, IDs, and body text, filters by frontmatter metadata predicates, discovers concepts governing a specific file path via `code_refs`, or filters across discrete memory scopes.
 
 ```bash
 okf search [query] [bundle-path] \
+  [--scope <all|project|bundle|vendor|user|system>] \
   [--for-path <file-or-dir>] \
   [--filter <predicate>] \
   [--stale-within <duration>] \
@@ -75,8 +76,14 @@ okf search [query] [bundle-path] \
 
 * **Arguments**:
   * `query` (optional when `--for-path`, `--filter`, or `--stale-within` is provided): Search terms or keywords.
-  * `bundle-path` (optional, default: `./knowledge`).
+  * `bundle-path` (optional, default: `./knowledge` or `.`).
 * **Flags**:
+  * `--scope <layer>` (default: `all`): Filter search to a specific memory layer:
+    * `all`: Queries across Project, Vendor, User, and System layers with hierarchical shadowing and priority ranking.
+    * `project` (alias `bundle`): Searches only the local project memory (`./knowledge/`).
+    * `vendor`: Searches only installed external vendor bundles in `.okf/vendor/`.
+    * `user`: Searches only personal developer memory in `~/.okf/` (or `$OKF_USER_DIR`).
+    * `system`: Searches only enterprise/system memory in `/etc/okf/` (or `$OKF_SYSTEM_DIR`).
   * `--for-path <path>`: Filters concepts governing a specific source file or directory via `code_refs` (exact match, directory prefix, standard glob, or recursive `**` wildcard).
   * `--filter <expr>`: Filters concepts by frontmatter key-value predicates (supports `=`, `!=`, `null`/`nil` checks, and comma-separated clauses). Examples:
     * `--filter "type=Decision"`
@@ -86,6 +93,13 @@ okf search [query] [bundle-path] \
   * `--stale-within <duration>`: Filters concepts that are already stale or will expire within relative horizon (e.g. `14d`, `2w`, `3m`).
   * `--limit <N>` (default: `10`): Maximum results to return.
   * `--json`: Outputs machine-readable JSON array of matching concepts with governance tiers and matched fields.
+
+#### Multi-Scope Priority Ranking & Shadowing
+
+When searching with `--scope all`:
+1. **Precedence Ranking**: Results are grouped by layer priority before BM25 score:
+   - **`project`** (Priority 100) > **`vendor`** (Priority 70) > **`user`** (Priority 50) > **`system`** (Priority 10).
+2. **Shadowing**: A concept in a higher layer strictly shadows identical concept IDs in lower layers (e.g. local `decisions/auth` overrides `@bundle/decisions/auth` or `user:decisions/auth`).
 
 #### Governance Badges & Authority Ranking
 
@@ -113,14 +127,19 @@ Found 2 matching concept(s) governing 'pkg/okf/types.go' in 'knowledge':
 
 ### 3. `show`
 
-Displays the full metadata, trust provenance, graph connections (inbound/outbound), and markdown body of a concept.
+Displays the full metadata, trust provenance, graph connections (inbound/outbound), and markdown body of a concept. Supports local concepts, external vendor packages, user memory, and system memory.
 
 ```bash
 okf show <concept-id> [bundle-path] [--json] [--raw]
 ```
 
 * **Arguments**:
-  * `concept-id` (required): Bundle-relative path without `.md` (e.g. `architecture/layers`).
+  * `concept-id` (required): Unique concept identifier or scoped reference:
+    * **Local Project Concept**: `decisions/auth` or `architecture/layers`
+    * **Vendor Concept**: `@<bundle-id>/<concept-id>` (e.g. `@nextjs-15/decisions/routing` or `@peter/django-rules/decisions/auth`)
+    * **User Concept**: `user:<concept-id>` (e.g. `user:guidelines/style`)
+    * **System Concept**: `system:<concept-id>` (e.g. `system:corp/policies`)
+    * **Canonical URN**: `okf://@nextjs-15/decisions/routing`, `okf://user/...`, `okf://system/...`
 * **Flags**:
   * `--raw`: Emits the exact raw markdown file as stored on disk.
   * `--json`: Emits complete structured concept object.
@@ -363,13 +382,25 @@ okf vendor remove <bundle-id>
 
 * **`vendor remove <bundle-id>`**: Uninstalls the vendor bundle matching the exact `<bundle-id>`, removes its directory under `.okf/vendor/<bundle-id>/`, updates `okf.lock` (deleting `okf.lock` if no bundles remain), and prevents accidental deletion of namespace parent directories.
 
-#### Multi-Scope Layering & `@` Cross-Scope Linking
+#### Multi-Scope Layering & Cross-Scope Linking
 
-When external bundles are installed via `okf pull`:
-1. **Precedence & Shadowing:** Concepts in `scope: project` (`./knowledge`, priority 100) always shadow concepts with identical IDs in `scope: vendor` (`.okf/vendor/`, priority 70).
-2. **Cross-Scope Links:** Reference vendor concepts hermetically via `@<bundle-id>/<concept-id>.md` (e.g. `@peter/django-5-rules/decisions/auth.md` or `@nextjs-15/decisions/routing.md`) or canonical URI `okf://@<bundle-id>/<concept-id>`.
-3. **Strict Local vs. Vendor Disambiguation:** 
-   - Identifiers with leading `@` (e.g. `@nextjs-15/decisions/routing`) resolve to `.okf/vendor/`.
-   - Identifiers without `@` (e.g. `nextjs-15/decisions/routing`) strictly resolve to the local project bundle (`knowledge/`).
-   - Bundle validation (`okf validate --strict`) treats all `@`-prefixed references as external vendor packages, guaranteeing 0 broken links in standalone CI.
+OKF Agent Memory organizes knowledge across four deterministic memory scopes. Higher layers strictly shadow identical concept IDs in lower layers during search, ensuring local project decisions always take precedence over external upstream packages or machine baselines:
+
+| Scope | Link / Reference Syntax | Canonical URN | Storage Location | Priority | Precedence & Rules |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`project`** | `decisions/auth.md` | *(bundle relative)* | `./knowledge/` | **100** | **Local Project Memory.** Authoritative SSoT for current repository; strictly shadows identical IDs from vendor, user, and system layers. |
+| **`vendor`** | `@nextjs-15/routing.md`<br/>`@peter/django-rules/auth.md` | `okf://@nextjs-15/routing`<br/>`okf://@peter/django-rules/auth` | `.okf/vendor/<bundle>/` | **70** | **External Packages.** Pinned dependencies pulled from OKF Registry (`registry.okf-memory.dev`) or Git. Shadows user and system. |
+| **`user`** | `user:guidelines/style.md` | `okf://user/guidelines/style` | `~/.okf/` | **50** | **Personal Agent Memory.** Developer preferences and cross-project notes. Shadows system. |
+| **`system`** | `system:corp/policies.md` | `okf://system/corp/policies` | `/etc/okf/` | **10** | **Enterprise / Machine Memory.** Infrastructure baselines and compliance policies. |
+
+#### Resolution & Disambiguation Rules:
+1. **Local vs. Vendor Disambiguation:**
+   - Identifiers with leading `@` (e.g. `@nextjs-15/decisions/routing`) strictly resolve to `.okf/vendor/`.
+   - Identifiers without `@` (e.g. `nextjs-15/decisions/routing` or `decisions/auth`) strictly resolve to the local project bundle (`knowledge/`).
+2. **User & System URN Shorthands:**
+   - `user:<path>` maps to `~/.okf/<path>` (or `$OKF_USER_DIR`).
+   - `system:<path>` maps to `/etc/okf/<path>` (or `$OKF_SYSTEM_DIR`).
+3. **Validator Immunity:**
+   - Bundle validation (`okf validate --strict`) treats all external references (`@`, `user:`, `system:`, `okf://`, `https://`) as external targets. They never produce broken link errors or fail producer gates, and outbound external links prevent false-positive orphan detection.
+
 
