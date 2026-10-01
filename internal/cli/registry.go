@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // Command defines a CLI subcommand with usage and execution handlers.
@@ -40,7 +41,7 @@ func renderUsageTo(w io.Writer) {
 		_, _ = fmt.Fprintf(w, format, a...)
 	}
 
-	p("OKF Agent Memory CLI (v%s)\n\n", Version)
+	p("OKF Agent Memory CLI (v%s)\n\n", strings.TrimPrefix(Version, "v"))
 	p("Usage:\n  okf <command> [arguments] [flags]\n\n")
 	p("Commands:\n")
 	for _, c := range commands {
