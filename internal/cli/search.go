@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -172,151 +171,23 @@ func cmdSearch(args []string) {
 		StaleWithin: staleWithin,
 	}
 
-	var results []okf.SearchResult
-	seenConcepts := make(map[string]bool)
-
-	searchProject := targetScope == "all" || targetScope == "project" || targetScope == "bundle"
-	searchVendor := targetScope == "all" || targetScope == "vendor"
-	searchUser := targetScope == "all" || targetScope == "user"
-	searchSystem := targetScope == "all" || targetScope == "system"
-
-	// 1. Search Project Layer (Priority 100)
-	if searchProject {
-		b, err := okf.LoadBundle(bundleDir)
-		if err != nil {
-			if targetScope != "all" {
-				fmt.Fprintf(os.Stderr, "Error loading bundle: %v\n", err)
-				exitFunc(2)
-				return
-			}
-		} else {
-			pResults, err := b.SearchAdvanced(searchOpts)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Search error: %v\n", err)
-				exitFunc(1)
-				return
-			}
-			for i := range pResults {
-				pResults[i].Scope = okf.ScopeProject
-				pResults[i].Priority = okf.PriorityProject
-				pResults[i].Origin = "local"
-				seenConcepts[pResults[i].ConceptID] = true
-				results = append(results, pResults[i])
-			}
-			for id := range b.Concepts {
-				seenConcepts[id] = true
-			}
-		}
-	}
-
-	// 2. Search Vendor Layer (Priority 70)
-	if searchVendor {
-		vendorRoot := filepath.Join(".okf", "vendor")
-		if info, err := os.Stat(vendorRoot); err == nil && info.IsDir() {
-			_ = filepath.Walk(vendorRoot, func(p string, fi os.FileInfo, err error) error {
-				if err != nil || !fi.IsDir() {
-					return nil
-				}
-				if _, err := os.Stat(filepath.Join(p, "index.md")); err == nil {
-					rel, _ := filepath.Rel(vendorRoot, p)
-					bundleID := filepath.ToSlash(rel)
-					vb, err := okf.LoadBundle(p)
-					if err == nil {
-						vResults, _ := vb.SearchAdvanced(searchOpts)
-						for _, vr := range vResults {
-							rawID := vr.ConceptID
-							if !seenConcepts[rawID] {
-								vr.Scope = okf.ScopeVendor
-								vr.Priority = okf.PriorityVendor
-								vr.Origin = fmt.Sprintf("@%s", bundleID)
-								vr.ConceptID = fmt.Sprintf("@%s/%s", bundleID, rawID)
-								results = append(results, vr)
-								seenConcepts[rawID] = true
-							}
-						}
-						for id := range vb.Concepts {
-							seenConcepts[id] = true
-						}
-					}
-					return filepath.SkipDir
-				}
-				return nil
-			})
-		}
-	}
-
-	// 3. Search User Layer (Priority 50)
-	if searchUser {
-		userDir := resolveUserDir()
-		if userDir != "" {
-			if info, err := os.Stat(userDir); err == nil && info.IsDir() {
-				cand := userDir
-				if kInfo, kErr := os.Stat(filepath.Join(userDir, "knowledge")); kErr == nil && kInfo.IsDir() {
-					cand = filepath.Join(userDir, "knowledge")
-				}
-				if ub, err := okf.LoadBundle(cand); err == nil {
-					uResults, _ := ub.SearchAdvanced(searchOpts)
-					for _, ur := range uResults {
-						rawID := ur.ConceptID
-						if !seenConcepts[rawID] {
-							ur.Scope = okf.ScopeUser
-							ur.Priority = okf.PriorityUser
-							ur.Origin = "user"
-							ur.ConceptID = fmt.Sprintf("user:%s", rawID)
-							results = append(results, ur)
-							seenConcepts[rawID] = true
-						}
-					}
-					for id := range ub.Concepts {
-						seenConcepts[id] = true
-					}
-				}
-			}
-		}
-	}
-
-	// 4. Search System Layer (Priority 10)
-	if searchSystem {
-		sysDir := resolveSystemDir()
-		if sysDir != "" {
-			if info, err := os.Stat(sysDir); err == nil && info.IsDir() {
-				cand := sysDir
-				if kInfo, kErr := os.Stat(filepath.Join(sysDir, "knowledge")); kErr == nil && kInfo.IsDir() {
-					cand = filepath.Join(sysDir, "knowledge")
-				}
-				if sb, err := okf.LoadBundle(cand); err == nil {
-					sResults, _ := sb.SearchAdvanced(searchOpts)
-					for _, sr := range sResults {
-						rawID := sr.ConceptID
-						if !seenConcepts[rawID] {
-							sr.Scope = okf.ScopeSystem
-							sr.Priority = okf.PrioritySystem
-							sr.Origin = "system"
-							sr.ConceptID = fmt.Sprintf("system:%s", rawID)
-							results = append(results, sr)
-							seenConcepts[rawID] = true
-						}
-					}
-					for id := range sb.Concepts {
-						seenConcepts[id] = true
-					}
-				}
-			}
-		}
-	}
-
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Priority != results[j].Priority {
-			return results[i].Priority > results[j].Priority
-		}
-		if results[i].Score != results[j].Score {
-			return results[i].Score > results[j].Score
-		}
-		return results[i].ConceptID < results[j].ConceptID
+	results, err := okf.SearchLayered(okf.LayeredSearchOptions{
+		BundleDir:  bundleDir,
+		VendorRoot: filepath.Join(".okf", "vendor"),
+		UserDir:    okf.ResolveUserDir(),
+		SystemDir:  okf.ResolveSystemDir(),
+		Scope:      targetScope,
+		SearchOpts: searchOpts,
 	})
-
-	if len(results) > *limit {
-		results = results[:*limit]
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "search error") {
+			fmt.Fprintf(os.Stderr, "Search error: %v\n", err)
+			exitFunc(1)
+			return
+		}
+		fmt.Fprintf(os.Stderr, "Error loading bundle: %v\n", err)
+		exitFunc(2)
+		return
 	}
 
 	if *jsonOut {
@@ -380,27 +251,6 @@ func cmdShow(args []string) {
 	}
 
 	rawID := strings.TrimSpace(args[0])
-	normID := okf.NormalizeVendorLink(rawID)
-	var showScope okf.Scope
-	var showBundleID string
-	var conceptID string
-
-	if strings.HasPrefix(normID, "okf://") {
-		var parseErr error
-		showScope, showBundleID, conceptID, parseErr = okf.ParseURI(normID)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", parseErr)
-			exitFunc(1)
-			return
-		}
-	} else {
-		if err := okf.ValidateConceptID(rawID); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			exitFunc(1)
-			return
-		}
-		conceptID = strings.TrimSuffix(rawID, ".md")
-	}
 
 	var subArgs []string
 	if len(args) > 1 {
@@ -414,34 +264,20 @@ func cmdShow(args []string) {
 	bundleDir, flagArgs := defaultBundle(subArgs)
 	_ = fs.Parse(flagArgs)
 
-	switch showScope {
-	case okf.ScopeVendor:
-		bundleDir = filepath.Join(".okf", "vendor", filepath.FromSlash(showBundleID))
-	case okf.ScopeUser:
-		bundleDir = resolveUserDir()
-		if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
-			bundleDir = filepath.Join(bundleDir, "knowledge")
-		}
-	case okf.ScopeSystem:
-		bundleDir = resolveSystemDir()
-		if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
-			bundleDir = filepath.Join(bundleDir, "knowledge")
-		}
-	}
-
-	b, err := okf.LoadBundle(bundleDir)
+	res, err := okf.ResolveScopedConcept(rawID, bundleDir, filepath.Join(".okf", "vendor"), okf.ResolveUserDir(), okf.ResolveSystemDir())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading bundle: %v\n", err)
-		exitFunc(2)
-		return
-	}
-
-	c, ok := b.Concepts[conceptID]
-	if !ok {
-		fmt.Fprintf(os.Stderr, "Concept '%s' not found in '%s'\n", conceptID, bundleDir)
+		if strings.Contains(err.Error(), "error loading bundle") {
+			fmt.Fprintf(os.Stderr, "Error loading bundle: %v\n", err)
+			exitFunc(2)
+			return
+		}
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		exitFunc(1)
 		return
 	}
+
+	c := res.Concept
+	b := res.Bundle
 
 	if *rawOut {
 		fmt.Print(c.RawContent)
@@ -472,21 +308,4 @@ func cmdShow(args []string) {
 	}
 	fmt.Println("\n--- Body ---")
 	fmt.Println(strings.TrimSpace(c.Body))
-}
-
-func resolveUserDir() string {
-	if dir := os.Getenv("OKF_USER_DIR"); dir != "" {
-		return dir
-	}
-	if homeDir, err := os.UserHomeDir(); err == nil && homeDir != "" {
-		return filepath.Join(homeDir, ".okf")
-	}
-	return ""
-}
-
-func resolveSystemDir() string {
-	if dir := os.Getenv("OKF_SYSTEM_DIR"); dir != "" {
-		return dir
-	}
-	return "/etc/okf"
 }

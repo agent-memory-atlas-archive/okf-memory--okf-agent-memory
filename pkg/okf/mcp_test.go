@@ -3,6 +3,7 @@ package okf
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -1197,5 +1198,196 @@ func TestMCPOversizedLineRejected(t *testing.T) {
 	resMap, ok := responses[1].Result.(map[string]any)
 	if !ok || resMap["tools"] == nil {
 		t.Errorf("Expected tools list in second response, got: %+v", responses[1].Result)
+	}
+}
+
+func TestMCPToolsList_MultiScopeSchemas(t *testing.T) {
+	var searchTool map[string]any
+	var showTool map[string]any
+
+	for _, tool := range GetMCPTools() {
+		switch tool["name"] {
+		case "okf_search":
+			searchTool = tool
+		case "okf_show":
+			showTool = tool
+		}
+	}
+
+	if searchTool == nil || showTool == nil {
+		t.Fatalf("Missing okf_search or okf_show in tool definitions")
+	}
+
+	// Verify okf_search inputSchema contains 'scope'
+	inSchema, _ := searchTool["inputSchema"].(map[string]any)
+	inProps, _ := inSchema["properties"].(map[string]any)
+	scopeProp, ok := inProps["scope"].(map[string]any)
+	if !ok {
+		t.Fatalf("okf_search inputSchema missing 'scope' property")
+	}
+	if scopeProp["type"] != "string" {
+		t.Errorf("expected scope property to be string, got: %v", scopeProp["type"])
+	}
+
+	// Verify okf_search outputSchema results item contains scope, priority, origin
+	outSchema, _ := searchTool["outputSchema"].(map[string]any)
+	outProps, _ := outSchema["properties"].(map[string]any)
+	resultsArr, _ := outProps["results"].(map[string]any)
+	items, _ := resultsArr["items"].(map[string]any)
+	itemProps, _ := items["properties"].(map[string]any)
+
+	for _, field := range []string{"scope", "priority", "origin"} {
+		if _, ok := itemProps[field]; !ok {
+			t.Errorf("okf_search outputSchema results item missing field: %q", field)
+		}
+	}
+
+	// Verify okf_show inputSchema concept_id description includes scoped references
+	showInSchema, _ := showTool["inputSchema"].(map[string]any)
+	showInProps, _ := showInSchema["properties"].(map[string]any)
+	cIDProp, ok := showInProps["concept_id"].(map[string]any)
+	if !ok {
+		t.Fatalf("okf_show inputSchema missing 'concept_id' property")
+	}
+	desc, _ := cIDProp["description"].(string)
+	if !strings.Contains(desc, "@") || !strings.Contains(desc, "user:") || !strings.Contains(desc, "system:") {
+		t.Errorf("expected okf_show concept_id description to mention scopes (@, user:, system:), got: %s", desc)
+	}
+}
+
+func TestMCP_SearchAndShow_MultiScopeLayering(t *testing.T) {
+	tempRoot := t.TempDir()
+
+	projDir := filepath.Join(tempRoot, "proj")
+	userDir := filepath.Join(tempRoot, "user")
+	sysDir := filepath.Join(tempRoot, "sys")
+
+	t.Setenv("OKF_USER_DIR", userDir)
+	t.Setenv("OKF_SYSTEM_DIR", sysDir)
+	t.Setenv("OKF_MCP_ROOT", projDir)
+
+	writeConcept := func(dir, relPath, title, body string) {
+		full := filepath.Join(dir, relPath)
+		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		content := fmt.Sprintf("---\ntype: Decision\ntitle: %s\ndescription: %s description\nstatus: stable\n---\n# %s\n%s\n", title, title, title, body)
+		if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// System layer
+	writeConcept(sysDir, "index.md", "System Index", "System index")
+	writeConcept(sysDir, "decisions/system-only.md", "System Only Concept", "Only in system")
+	writeConcept(sysDir, "decisions/shared.md", "System Shared Concept", "Shared concept")
+
+	// User layer
+	writeConcept(userDir, "index.md", "User Index", "User index")
+	writeConcept(userDir, "decisions/user-only.md", "User Only Concept", "Only in user")
+	writeConcept(userDir, "decisions/shared.md", "User Shared Concept", "Shared concept")
+
+	// Vendor layer
+	vendorReact := filepath.Join(projDir, ".okf", "vendor", "react-19")
+	writeConcept(vendorReact, "index.md", "React Index", "React index")
+	writeConcept(vendorReact, "decisions/routing.md", "React Routing Concept", "Vendor routing")
+	writeConcept(vendorReact, "decisions/shared.md", "Vendor Shared Concept", "Shared concept")
+
+	// Project layer
+	projKnowledge := filepath.Join(projDir, "knowledge")
+	writeConcept(projKnowledge, "index.md", "Project Index", "Project index")
+	writeConcept(projKnowledge, "decisions/proj-only.md", "Project Only Concept", "Only in project")
+	writeConcept(projKnowledge, "decisions/shared.md", "Project Shared Concept", "Shared concept")
+
+	// 1. Search with scope: vendor
+	inputsVendor := []string{
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"okf_search","arguments":{"bundle":"` + jsonPath(projKnowledge) + `","query":"Concept","scope":"vendor"}}}`,
+	}
+	respsVendor := runMCPConversation(t, projKnowledge, inputsVendor)
+	if len(respsVendor) != 1 {
+		t.Fatalf("Expected 1 response for vendor search, got %d", len(respsVendor))
+	}
+	rMap, ok := respsVendor[0].Result.(map[string]any)
+	if !ok {
+		t.Fatalf("Unexpected result: %+v", respsVendor[0])
+	}
+	contentList, _ := rMap["content"].([]any)
+	cMap, _ := contentList[0].(map[string]any)
+	text, _ := cMap["text"].(string)
+
+	var vendorResults []SearchResult
+	if err := json.Unmarshal([]byte(text), &vendorResults); err != nil {
+		t.Fatalf("Failed to parse vendor search results: %v", err)
+	}
+	if len(vendorResults) != 2 {
+		t.Fatalf("Expected 2 vendor results, got %d", len(vendorResults))
+	}
+	for _, r := range vendorResults {
+		if r.Scope != ScopeVendor || r.Priority != PriorityVendor || !strings.HasPrefix(r.ConceptID, "@react-19/") {
+			t.Errorf("Unexpected vendor result: %+v", r)
+		}
+	}
+
+	// 2. Search with scope: all (verifies priority ranking and local shadowing of shared)
+	inputsAll := []string{
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"okf_search","arguments":{"bundle":"` + jsonPath(projKnowledge) + `","query":"shared","scope":"all"}}}`,
+	}
+	respsAll := runMCPConversation(t, projKnowledge, inputsAll)
+	if len(respsAll) != 1 {
+		t.Fatalf("Expected 1 response for all search, got %d", len(respsAll))
+	}
+	rMapAll, _ := respsAll[0].Result.(map[string]any)
+	contentListAll, _ := rMapAll["content"].([]any)
+	cMapAll, _ := contentListAll[0].(map[string]any)
+	textAll, _ := cMapAll["text"].(string)
+
+	var allResults []SearchResult
+	if err := json.Unmarshal([]byte(textAll), &allResults); err != nil {
+		t.Fatalf("Failed to parse all search results: %v", err)
+	}
+	if len(allResults) != 1 {
+		t.Fatalf("Expected exactly 1 result for 'shared' (project shadowing lower layers), got %d", len(allResults))
+	}
+	if allResults[0].Scope != ScopeProject || allResults[0].Priority != PriorityProject || allResults[0].Title != "Project Shared Concept" {
+		t.Errorf("Expected project shared concept to shadow lower layers, got: %+v", allResults[0])
+	}
+
+	// 3. Show concepts across all scopes
+	showInputs := []string{
+		`{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"okf_show","arguments":{"bundle":"` + jsonPath(projKnowledge) + `","concept_id":"decisions/proj-only"}}}`,
+		`{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"okf_show","arguments":{"bundle":"` + jsonPath(projKnowledge) + `","concept_id":"@react-19/decisions/routing"}}}`,
+		`{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"okf_show","arguments":{"bundle":"` + jsonPath(projKnowledge) + `","concept_id":"user:decisions/user-only"}}}`,
+		`{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"okf_show","arguments":{"bundle":"` + jsonPath(projKnowledge) + `","concept_id":"okf://system/decisions/system-only"}}}`,
+		// Security: traversal rejection in scoped ref
+		`{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"okf_show","arguments":{"bundle":"` + jsonPath(projKnowledge) + `","concept_id":"@react-19/../../etc/passwd"}}}`,
+	}
+	showResps := runMCPConversation(t, projKnowledge, showInputs)
+	if len(showResps) != 5 {
+		t.Fatalf("Expected 5 responses for show, got %d", len(showResps))
+	}
+
+	expectTitles := []string{
+		"Project Only Concept",
+		"React Routing Concept",
+		"User Only Concept",
+		"System Only Concept",
+	}
+	for i, expTitle := range expectTitles {
+		respMap, ok := showResps[i].Result.(map[string]any)
+		if !ok || respMap["isError"] == true {
+			t.Fatalf("Show call %d failed: %+v", i+1, showResps[i])
+		}
+		cList, _ := respMap["content"].([]any)
+		cm, _ := cList[0].(map[string]any)
+		txt, _ := cm["text"].(string)
+		if !strings.Contains(txt, expTitle) {
+			t.Errorf("Expected title %q in response %d, got: %s", expTitle, i+1, txt)
+		}
+	}
+
+	// 5th response must be error due to traversal
+	respErrMap, _ := showResps[4].Result.(map[string]any)
+	if respErrMap["isError"] != true {
+		t.Errorf("Expected traversal show to return isError: true, got: %+v", showResps[4])
 	}
 }

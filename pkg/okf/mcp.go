@@ -417,13 +417,20 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 
 	b, err := LoadBundle(bundleDir)
 	if err != nil {
-		s.sendToolResult(req.ID, fmt.Sprintf("Failed to load bundle from %q: %v", bundleDir, err), nil, true)
-		return
+		if callParams.Name != "okf_search" && callParams.Name != "okf_show" {
+			s.sendToolResult(req.ID, fmt.Sprintf("Failed to load bundle from %q: %v", bundleDir, err), nil, true)
+			return
+		}
 	}
 
 	switch callParams.Name {
 	case "okf_search":
 		query, err := getStringArg(callParams.Arguments, "query", 10000, false)
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
+			return
+		}
+		scope, err := getStringArg(callParams.Arguments, "scope", 100, false)
 		if err != nil {
 			s.sendToolResult(req.ID, fmt.Sprintf("Invalid arguments: %v", err), nil, true)
 			return
@@ -460,12 +467,28 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 				limit = 100
 			}
 		}
-		results, err := b.SearchAdvanced(SearchOptions{
-			Query:       query,
-			TargetPath:  forPath,
-			Limit:       limit,
-			Filter:      filter,
-			StaleWithin: staleWithin,
+
+		vendorRoot := filepath.Join(".okf", "vendor")
+		if s.rootDir != "" {
+			cand := filepath.Join(s.rootDir, ".okf", "vendor")
+			if info, err := os.Stat(cand); err == nil && info.IsDir() {
+				vendorRoot = cand
+			}
+		}
+
+		results, err := SearchLayered(LayeredSearchOptions{
+			BundleDir:  bundleDir,
+			VendorRoot: vendorRoot,
+			UserDir:    ResolveUserDir(),
+			SystemDir:  ResolveSystemDir(),
+			Scope:      scope,
+			SearchOpts: SearchOptions{
+				Query:       query,
+				TargetPath:  forPath,
+				Limit:       limit,
+				Filter:      filter,
+				StaleWithin: staleWithin,
+			},
 		})
 		if err != nil {
 			s.sendToolResult(req.ID, fmt.Sprintf("Search error: %v", err), nil, true)
@@ -485,18 +508,22 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 			return
 		}
 		conceptID = strings.TrimSpace(conceptID)
-		if err := ValidateConceptID(conceptID); err != nil {
-			s.sendToolResult(req.ID, fmt.Sprintf("Invalid concept_id: %v", err), nil, true)
+
+		vendorRoot := filepath.Join(".okf", "vendor")
+		if s.rootDir != "" {
+			cand := filepath.Join(s.rootDir, ".okf", "vendor")
+			if info, err := os.Stat(cand); err == nil && info.IsDir() {
+				vendorRoot = cand
+			}
+		}
+
+		res, err := ResolveScopedConcept(conceptID, bundleDir, vendorRoot, ResolveUserDir(), ResolveSystemDir())
+		if err != nil {
+			s.sendToolResult(req.ID, fmt.Sprintf("%v", err), nil, true)
 			return
 		}
-		conceptID = strings.TrimSuffix(conceptID, ".md")
-		c, ok := b.Concepts[conceptID]
-		if !ok {
-			s.sendToolResult(req.ID, fmt.Sprintf("Concept '%s' not found in %s", conceptID, bundleDir), nil, true)
-			return
-		}
-		resJSON, _ := json.Marshal(c)
-		s.sendToolResult(req.ID, string(resJSON), c, false)
+		resJSON, _ := json.Marshal(res.Concept)
+		s.sendToolResult(req.ID, string(resJSON), res.Concept, false)
 
 	case "okf_validate":
 		strict := true
