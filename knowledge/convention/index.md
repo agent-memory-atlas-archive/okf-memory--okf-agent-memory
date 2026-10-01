@@ -8,3 +8,4 @@
 * [Engineering & Coding Best Practices (Clean Code, TDD, DRY)](coding-standards.md) - Core software engineering conventions covering Clean Code, TDD, DRY, idiomatic Go, and zero third-party dependency design.
 * [Dual-Memory Agent Architecture & Agent Action Grammar](dual-memory-architecture.md) - Two-layer memory model separating normative working memory (Push/AAG) from semantic domain memory (Pull/OKF).
 * [Release Procedure & Distribution Runbook](release-procedure.md) - Canonical procedure for preparing releases, quality gates, file inventory, signed tagging, and the human push boundary.
+* [CLI and MCP Command Modification Checklist](command-mutation-checklist.md) - Comprehensive checklist and invariant gates required when adding or modifying CLI commands, flags, arguments, and MCP tools.
