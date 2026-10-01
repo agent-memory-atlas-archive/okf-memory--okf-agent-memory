@@ -42,6 +42,18 @@ func NormalizeVendorLink(link string) string {
 		rel = strings.TrimSuffix(rel, ".md")
 		return "okf://@" + rel
 	}
+	if strings.HasPrefix(link, "user:") {
+		rel := strings.TrimPrefix(link, "user:")
+		rel = strings.TrimPrefix(rel, "/")
+		rel = strings.TrimSuffix(rel, ".md")
+		return "okf://user/" + rel
+	}
+	if strings.HasPrefix(link, "system:") {
+		rel := strings.TrimPrefix(link, "system:")
+		rel = strings.TrimPrefix(rel, "/")
+		rel = strings.TrimSuffix(rel, ".md")
+		return "okf://system/" + rel
+	}
 	return link
 }
 
@@ -109,6 +121,19 @@ func ParseURI(rawURI string) (Scope, string, string, error) {
 		return ScopeVendor, bundleID, conceptID, nil
 	}
 
+	if strings.HasPrefix(rawURI, "user:") {
+		conceptID := strings.TrimPrefix(rawURI, "user:")
+		conceptID = strings.TrimPrefix(conceptID, "/")
+		conceptID = strings.TrimSuffix(conceptID, ".md")
+		return ScopeUser, "", conceptID, nil
+	}
+	if strings.HasPrefix(rawURI, "system:") {
+		conceptID := strings.TrimPrefix(rawURI, "system:")
+		conceptID = strings.TrimPrefix(conceptID, "/")
+		conceptID = strings.TrimSuffix(conceptID, ".md")
+		return ScopeSystem, "", conceptID, nil
+	}
+
 	if !strings.HasPrefix(rawURI, "okf://") {
 		return "", "", "", fmt.Errorf("not an okf:// URI or @vendor reference")
 	}
@@ -135,4 +160,19 @@ func ParseURI(rawURI string) (Scope, string, string, error) {
 	default:
 		return "", "", "", fmt.Errorf("unknown scope in URI: %s", scope)
 	}
+}
+
+// IsExternalLink checks whether a link href points to an external or scoped target
+// (vendor @bundle/..., user:..., system:..., or explicit scheme like okf://, https://, etc.)
+// and therefore must never cause broken-link failures in local bundle validation.
+func IsExternalLink(href string) bool {
+	norm := strings.TrimSpace(href)
+	if norm == "" {
+		return false
+	}
+	return strings.Contains(norm, "://") ||
+		strings.HasPrefix(norm, "@") ||
+		strings.HasPrefix(norm, "user:") ||
+		strings.HasPrefix(norm, "system:") ||
+		strings.HasPrefix(norm, "mailto:")
 }

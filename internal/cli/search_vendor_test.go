@@ -177,4 +177,29 @@ Use session authentication in Django 5
 	if !exitCalled {
 		t.Errorf("expected exitFunc to be called for missing concept")
 	}
+
+	// 10. Verify --scope flag behavior
+	// --scope project should NOT return vendor concepts
+	outScopeProject := captureOutput(func() {
+		searchCmd.Run([]string{"django", "--scope", "project", "--json"})
+	})
+	if strings.Contains(outScopeProject, "@peter/django-5-rules") {
+		t.Errorf("expected --scope project to exclude vendor concepts, got: %s", outScopeProject)
+	}
+
+	// --scope vendor should return vendor concepts even when searched specifically
+	outScopeVendor := captureOutput(func() {
+		searchCmd.Run([]string{"django", "--scope", "vendor", "--json"})
+	})
+	if !strings.Contains(outScopeVendor, "@peter/django-5-rules/decisions/auth") {
+		t.Errorf("expected --scope vendor to include vendor concepts, got: %s", outScopeVendor)
+	}
+
+	// --scope vendor for "shadowed" returns vendor concept because local layer is excluded!
+	outVendorShadowed := captureOutput(func() {
+		searchCmd.Run([]string{"shadowed", "--scope", "vendor", "--json"})
+	})
+	if !strings.Contains(outVendorShadowed, "Vendor Shadowed Decision") {
+		t.Errorf("expected --scope vendor to find vendor shadowed decision, got: %s", outVendorShadowed)
+	}
 }

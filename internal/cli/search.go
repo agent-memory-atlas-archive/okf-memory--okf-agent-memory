@@ -31,6 +31,7 @@ Arguments:
   [bundle]               Path to OKF bundle directory (default: 'knowledge' or '.')
 
 Flags:
+  --scope <layer>        Memory layer to search: all, project, bundle, vendor, user, system (default: all)
   --for-path <path>      Discover concepts governing a specific file path via code_refs
   --filter <expr>        Filter by frontmatter key-value predicates (e.g. 'type=Decision', 'verified.by=human')
   --stale-within <dur>   Filter concepts becoming stale within relative duration (e.g. '14d', '2w', '3m')
@@ -39,6 +40,7 @@ Flags:
 
 Examples:
   okf search "authentication jwt" knowledge --limit 3
+  okf search "routing" --scope vendor
   okf search --filter "verified.by=human" knowledge
   okf search --stale-within 14d knowledge
   okf search --for-path pkg/auth/service.go knowledge --json
@@ -74,6 +76,7 @@ func cmdSearch(args []string) {
 	}
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 	limit := fs.Int("limit", 10, "Maximum number of search results")
+	scopeFlag := fs.String("scope", "all", "Memory layer to search: all, project, bundle, vendor, user, system")
 	forPath := fs.String("for-path", "", "Filter concepts governing a specific file path via code_refs")
 	filter := fs.String("filter", "", "Filter concepts by frontmatter key-value predicates")
 	staleWithinStr := fs.String("stale-within", "", "Filter concepts becoming stale within relative duration")
@@ -87,7 +90,7 @@ func cmdSearch(args []string) {
 		if strings.HasPrefix(arg, "-") {
 			flagArgs = append(flagArgs, arg)
 			name := strings.TrimLeft(arg, "-")
-			if (name == "limit" || name == "for-path" || name == "filter" || name == "stale-within") && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+			if (name == "limit" || name == "for-path" || name == "filter" || name == "stale-within" || name == "scope") && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 				i++
 				flagArgs = append(flagArgs, args[i])
 			}
@@ -97,6 +100,14 @@ func cmdSearch(args []string) {
 	}
 
 	_ = fs.Parse(flagArgs)
+
+	targetScope := strings.ToLower(strings.TrimSpace(*scopeFlag))
+	switch targetScope {
+	case "all", "project", "bundle", "vendor", "user", "system":
+	default:
+		fmt.Fprintf(os.Stderr, "Error: invalid --scope '%s' (allowed: all, project, bundle, vendor, user, system)\n", *scopeFlag)
+		os.Exit(1)
+	}
 
 	fallback := "."
 	if info, err := os.Stat("knowledge"); err == nil && info.IsDir() {
@@ -128,7 +139,7 @@ func cmdSearch(args []string) {
 	}
 
 	if query == "" && *forPath == "" && *filter == "" && *staleWithinStr == "" {
-		fmt.Fprintln(os.Stderr, "Usage: okf search [query] [bundle] [--for-path <path>] [--filter <expr>] [--stale-within <duration>] [--limit N] [--json]")
+		fmt.Fprintln(os.Stderr, "Usage: okf search [query] [bundle] [--scope <all|project|vendor|user|system>] [--for-path <path>] [--filter <expr>] [--stale-within <duration>] [--limit N] [--json]")
 		os.Exit(1)
 	}
 
@@ -142,69 +153,129 @@ func cmdSearch(args []string) {
 		staleWithin = d
 	}
 
-	b, err := okf.LoadBundle(bundleDir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading bundle: %v\n", err)
-		os.Exit(2)
-	}
-
-	results, err := b.SearchAdvanced(okf.SearchOptions{
+	searchOpts := okf.SearchOptions{
 		Query:       query,
 		TargetPath:  *forPath,
 		Limit:       *limit,
 		Filter:      *filter,
 		StaleWithin: staleWithin,
-	})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Search error: %v\n", err)
-		os.Exit(1)
 	}
 
+	var results []okf.SearchResult
 	seenConcepts := make(map[string]bool)
-	for i := range results {
-		results[i].Scope = okf.ScopeProject
-		results[i].Priority = okf.PriorityProject
-		results[i].Origin = "local"
-		seenConcepts[results[i].ConceptID] = true
-	}
-	// Also mark all concepts in primary bundle as seen so they shadow any matching vendor concept IDs
-	for id := range b.Concepts {
-		seenConcepts[id] = true
+
+	searchProject := targetScope == "all" || targetScope == "project" || targetScope == "bundle"
+	searchVendor := targetScope == "all" || targetScope == "vendor"
+	searchUser := targetScope == "all" || targetScope == "user"
+	searchSystem := targetScope == "all" || targetScope == "system"
+
+	// 1. Search Project Layer (Priority 100)
+	if searchProject {
+		b, err := okf.LoadBundle(bundleDir)
+		if err != nil {
+			if targetScope != "all" {
+				fmt.Fprintf(os.Stderr, "Error loading bundle: %v\n", err)
+				os.Exit(2)
+			}
+		} else {
+			pResults, err := b.SearchAdvanced(searchOpts)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Search error: %v\n", err)
+				os.Exit(1)
+			}
+			for i := range pResults {
+				pResults[i].Scope = okf.ScopeProject
+				pResults[i].Priority = okf.PriorityProject
+				pResults[i].Origin = "local"
+				seenConcepts[pResults[i].ConceptID] = true
+				results = append(results, pResults[i])
+			}
+			for id := range b.Concepts {
+				seenConcepts[id] = true
+			}
+		}
 	}
 
-	// Discover and search vendor bundles if .okf/vendor exists
-	vendorRoot := filepath.Join(".okf", "vendor")
-	if info, err := os.Stat(vendorRoot); err == nil && info.IsDir() {
-		_ = filepath.Walk(vendorRoot, func(p string, fi os.FileInfo, err error) error {
-			if err != nil || !fi.IsDir() {
+	// 2. Search Vendor Layer (Priority 70)
+	if searchVendor {
+		vendorRoot := filepath.Join(".okf", "vendor")
+		if info, err := os.Stat(vendorRoot); err == nil && info.IsDir() {
+			_ = filepath.Walk(vendorRoot, func(p string, fi os.FileInfo, err error) error {
+				if err != nil || !fi.IsDir() {
+					return nil
+				}
+				if _, err := os.Stat(filepath.Join(p, "index.md")); err == nil {
+					rel, _ := filepath.Rel(vendorRoot, p)
+					bundleID := filepath.ToSlash(rel)
+					vb, err := okf.LoadBundle(p)
+					if err == nil {
+						vResults, _ := vb.SearchAdvanced(searchOpts)
+						for _, vr := range vResults {
+							if !seenConcepts[vr.ConceptID] {
+								vr.Scope = okf.ScopeVendor
+								vr.Priority = okf.PriorityVendor
+								vr.Origin = fmt.Sprintf("@%s", bundleID)
+								vr.ConceptID = fmt.Sprintf("@%s/%s", bundleID, vr.ConceptID)
+								results = append(results, vr)
+							}
+						}
+					}
+					return filepath.SkipDir
+				}
 				return nil
-			}
-			if _, err := os.Stat(filepath.Join(p, "index.md")); err == nil {
-				rel, _ := filepath.Rel(vendorRoot, p)
-				bundleID := filepath.ToSlash(rel)
-				vb, err := okf.LoadBundle(p)
-				if err == nil {
-					vResults, _ := vb.SearchAdvanced(okf.SearchOptions{
-						Query:       query,
-						TargetPath:  *forPath,
-						Limit:       *limit,
-						Filter:      *filter,
-						StaleWithin: staleWithin,
-					})
-					for _, vr := range vResults {
-						if !seenConcepts[vr.ConceptID] {
-							vr.Scope = okf.ScopeVendor
-							vr.Priority = okf.PriorityVendor
-							vr.Origin = fmt.Sprintf("@%s", bundleID)
-							vr.ConceptID = fmt.Sprintf("@%s/%s", bundleID, vr.ConceptID)
-							results = append(results, vr)
+			})
+		}
+	}
+
+	// 3. Search User Layer (Priority 50)
+	if searchUser {
+		homeDir, _ := os.UserHomeDir()
+		if homeDir != "" {
+			userDir := filepath.Join(homeDir, ".okf")
+			if info, err := os.Stat(userDir); err == nil && info.IsDir() {
+				cand := userDir
+				if kInfo, kErr := os.Stat(filepath.Join(userDir, "knowledge")); kErr == nil && kInfo.IsDir() {
+					cand = filepath.Join(userDir, "knowledge")
+				}
+				if ub, err := okf.LoadBundle(cand); err == nil {
+					uResults, _ := ub.SearchAdvanced(searchOpts)
+					for _, ur := range uResults {
+						if !seenConcepts[ur.ConceptID] {
+							ur.Scope = okf.ScopeUser
+							ur.Priority = okf.PriorityUser
+							ur.Origin = "user"
+							ur.ConceptID = fmt.Sprintf("user:%s", ur.ConceptID)
+							results = append(results, ur)
+							seenConcepts[ur.ConceptID] = true
 						}
 					}
 				}
-				return filepath.SkipDir
 			}
-			return nil
-		})
+		}
+	}
+
+	// 4. Search System Layer (Priority 10)
+	if searchSystem {
+		sysDir := "/etc/okf"
+		if info, err := os.Stat(sysDir); err == nil && info.IsDir() {
+			cand := sysDir
+			if kInfo, kErr := os.Stat(filepath.Join(sysDir, "knowledge")); kErr == nil && kInfo.IsDir() {
+				cand = filepath.Join(sysDir, "knowledge")
+			}
+			if sb, err := okf.LoadBundle(cand); err == nil {
+				sResults, _ := sb.SearchAdvanced(searchOpts)
+				for _, sr := range sResults {
+					if !seenConcepts[sr.ConceptID] {
+						sr.Scope = okf.ScopeSystem
+						sr.Priority = okf.PrioritySystem
+						sr.Origin = "system"
+						sr.ConceptID = fmt.Sprintf("system:%s", sr.ConceptID)
+						results = append(results, sr)
+						seenConcepts[sr.ConceptID] = true
+					}
+				}
+			}
+		}
 	}
 
 	sort.Slice(results, func(i, j int) bool {
@@ -227,6 +298,11 @@ func cmdSearch(args []string) {
 		return
 	}
 
+	scopeSuffix := ""
+	if targetScope != "all" {
+		scopeSuffix = fmt.Sprintf(" [scope: %s]", targetScope)
+	}
+
 	if len(results) == 0 {
 		var criteria []string
 		if query != "" {
@@ -241,21 +317,26 @@ func cmdSearch(args []string) {
 		if *staleWithinStr != "" {
 			criteria = append(criteria, fmt.Sprintf("stale within %s", *staleWithinStr))
 		}
-		fmt.Printf("No matching concepts found for %s in '%s'\n", strings.Join(criteria, ", "), bundleDir)
+		fmt.Printf("No matching concepts found for %s%s\n", strings.Join(criteria, ", "), scopeSuffix)
 		return
 	}
 
 	if *forPath != "" {
-		fmt.Printf("Found %d matching concept(s) governing '%s' in '%s':\n\n", len(results), *forPath, bundleDir)
+		fmt.Printf("Found %d matching concept(s) governing '%s'%s:\n\n", len(results), *forPath, scopeSuffix)
 	} else {
-		fmt.Printf("Found %d matching concept(s) in '%s':\n\n", len(results), bundleDir)
+		fmt.Printf("Found %d matching concept(s)%s:\n\n", len(results), scopeSuffix)
 	}
 
 	for i, r := range results {
 		govBadge := fmt.Sprintf("[%s]", r.Governance)
 		scopeInfo := ""
-		if r.Scope == okf.ScopeVendor {
+		switch r.Scope {
+		case okf.ScopeVendor:
 			scopeInfo = fmt.Sprintf(" (%s)", r.Origin)
+		case okf.ScopeUser:
+			scopeInfo = " (user)"
+		case okf.ScopeSystem:
+			scopeInfo = " (system)"
 		}
 		fmt.Printf("%2d. %-12s [%.2f] %s (%s)%s\n    %s\n    Matches: %s\n\n",
 			i+1, govBadge, r.Score, r.ConceptID, r.Type, scopeInfo, r.Description, strings.Join(r.MatchedOn, ", "))
@@ -306,8 +387,20 @@ func cmdShow(args []string) {
 	bundleDir, flagArgs := defaultBundle(subArgs)
 	_ = fs.Parse(flagArgs)
 
-	if showScope == okf.ScopeVendor {
+	switch showScope {
+	case okf.ScopeVendor:
 		bundleDir = filepath.Join(".okf", "vendor", filepath.FromSlash(showBundleID))
+	case okf.ScopeUser:
+		homeDir, _ := os.UserHomeDir()
+		bundleDir = filepath.Join(homeDir, ".okf")
+		if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
+			bundleDir = filepath.Join(bundleDir, "knowledge")
+		}
+	case okf.ScopeSystem:
+		bundleDir = "/etc/okf"
+		if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
+			bundleDir = filepath.Join(bundleDir, "knowledge")
+		}
 	}
 
 	b, err := okf.LoadBundle(bundleDir)

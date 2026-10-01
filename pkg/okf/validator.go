@@ -258,6 +258,9 @@ func Validate(b *Bundle, opts ValidateOptions) *ValidationResult {
 			matches := entryRegex.FindAllStringSubmatch(StripFences(idxContent), -1)
 			for _, m := range matches {
 				href := m[1]
+				if IsExternalLink(href) {
+					continue
+				}
 				listingDesc := m[2]
 				targetID := b.ResolveLink(idxPath, href)
 				if concept, ok := b.Concepts[targetID]; ok && concept.Description != "" {
@@ -276,6 +279,9 @@ func Validate(b *Bundle, opts ValidateOptions) *ValidationResult {
 				matches := linkRegex.FindAllStringSubmatch(body, -1)
 				targets := make(map[string]bool, len(matches))
 				for _, match := range matches {
+					if IsExternalLink(match[1]) {
+						continue
+					}
 					if targetID := b.ResolveLink(idxPath, match[1]); targetID != "" {
 						targets[targetID] = true
 					}
