@@ -195,8 +195,8 @@ func cmdSearch(args []string) {
 						if !seenConcepts[vr.ConceptID] {
 							vr.Scope = okf.ScopeVendor
 							vr.Priority = okf.PriorityVendor
-							vr.Origin = fmt.Sprintf("vendor/%s", bundleID)
-							vr.ConceptID = fmt.Sprintf("okf://vendor/%s/%s", bundleID, vr.ConceptID)
+							vr.Origin = fmt.Sprintf("@%s", bundleID)
+							vr.ConceptID = fmt.Sprintf("@%s/%s", bundleID, vr.ConceptID)
 							results = append(results, vr)
 						}
 					}
@@ -282,12 +282,14 @@ func cmdShow(args []string) {
 		showScope, showBundleID, conceptID, parseErr = okf.ParseURI(normID)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", parseErr)
-			os.Exit(1)
+			exitFunc(1)
+			return
 		}
 	} else {
 		if err := okf.ValidateConceptID(rawID); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			exitFunc(1)
+			return
 		}
 		conceptID = strings.TrimSuffix(rawID, ".md")
 	}
@@ -311,13 +313,15 @@ func cmdShow(args []string) {
 	b, err := okf.LoadBundle(bundleDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading bundle: %v\n", err)
-		os.Exit(2)
+		exitFunc(2)
+		return
 	}
 
 	c, ok := b.Concepts[conceptID]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "Concept '%s' not found in '%s'\n", conceptID, bundleDir)
-		os.Exit(1)
+		exitFunc(1)
+		return
 	}
 
 	if *rawOut {

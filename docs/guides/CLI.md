@@ -363,9 +363,13 @@ okf vendor remove <bundle-id>
 
 * **`vendor remove <bundle-id>`**: Uninstalls the vendor bundle matching the exact `<bundle-id>`, removes its directory under `.okf/vendor/<bundle-id>/`, updates `okf.lock` (deleting `okf.lock` if no bundles remain), and prevents accidental deletion of namespace parent directories.
 
-#### Multi-Scope Layering & `okf://` Cross-Scope Linking
+#### Multi-Scope Layering & `@` Cross-Scope Linking
 
 When external bundles are installed via `okf pull`:
 1. **Precedence & Shadowing:** Concepts in `scope: project` (`./knowledge`, priority 100) always shadow concepts with identical IDs in `scope: vendor` (`.okf/vendor/`, priority 70).
-2. **Cross-Scope Links:** Reference vendor concepts hermetically via `okf://vendor/<bundle-id>/<concept-id>` or shorthand `@vendor/<bundle-id>/<concept-id>.md`. Bundle validation (`okf validate --strict`) treats `okf://` and `@vendor/` as external links, guaranteeing 0 broken links in standalone CI.
+2. **Cross-Scope Links:** Reference vendor concepts hermetically via `@<bundle-id>/<concept-id>.md` (e.g. `@peter/django-5-rules/decisions/auth.md` or `@nextjs-15/decisions/routing.md`) or canonical URI `okf://@<bundle-id>/<concept-id>`.
+3. **Strict Local vs. Vendor Disambiguation:** 
+   - Identifiers with leading `@` (e.g. `@nextjs-15/decisions/routing`) resolve to `.okf/vendor/`.
+   - Identifiers without `@` (e.g. `nextjs-15/decisions/routing`) strictly resolve to the local project bundle (`knowledge/`).
+   - Bundle validation (`okf validate --strict`) treats all `@`-prefixed references as external vendor packages, guaranteeing 0 broken links in standalone CI.
 

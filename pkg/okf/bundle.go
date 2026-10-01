@@ -289,8 +289,8 @@ func (b *Bundle) buildGraph() {
 
 		for _, match := range matches {
 			href := match[1]
-			if strings.Contains(href, "://") || strings.HasPrefix(href, "@vendor/") {
-				continue // External URL or Qualified Scope URI: hermetic CI ignores remote target
+			if strings.Contains(href, "://") || strings.HasPrefix(href, "@") {
+				continue // External URL or Qualified Vendor Package: hermetic CI ignores remote target
 			}
 
 			targetID := b.ResolveLink(concept.Path, href)
@@ -330,8 +330,8 @@ func (b *Bundle) buildGraph() {
 
 		for _, match := range matches {
 			href := match[1]
-			if strings.Contains(href, "://") || strings.HasPrefix(href, "@vendor/") {
-				continue // External URL or Qualified Scope URI: hermetic CI ignores remote target
+			if strings.Contains(href, "://") || strings.HasPrefix(href, "@") {
+				continue // External URL or Qualified Vendor Package: hermetic CI ignores remote target
 			}
 
 			targetID := b.ResolveLink(idxPath, href)

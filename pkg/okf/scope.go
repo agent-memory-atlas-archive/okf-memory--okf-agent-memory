@@ -2,6 +2,8 @@ package okf
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -29,20 +31,97 @@ type LayeredSearchResult struct {
 	Title     string  `json:"title"`
 }
 
+// NormalizeVendorLink normalizes a vendor link or markdown reference into an okf://@ URI.
+// For example:
+//
+//	@peter/django-5-rules/decisions/auth.md -> okf://@peter/django-5-rules/decisions/auth
+//	@nextjs-15/decisions/routing.md        -> okf://@nextjs-15/decisions/routing
 func NormalizeVendorLink(link string) string {
-	if strings.HasPrefix(link, "@vendor/") {
-		rel := strings.TrimPrefix(link, "@vendor/")
+	if strings.HasPrefix(link, "@") {
+		rel := strings.TrimPrefix(link, "@")
 		rel = strings.TrimSuffix(rel, ".md")
-		return "okf://vendor/" + rel
+		return "okf://@" + rel
 	}
 	return link
 }
 
-func ParseURI(rawURI string) (Scope, string, string, error) {
-	if !strings.HasPrefix(rawURI, "okf://") {
-		return "", "", "", fmt.Errorf("not an okf:// URI")
+// ParseVendorRef splits a bundle-relative target (e.g. "nextjs-15/decisions/routing" or
+// "peter/django-5-rules/decisions/auth") into bundleID and conceptID.
+// It checks vendorRoot (default .okf/vendor) for existing index.md files to disambiguate
+// between 1-part and 2-part bundle names, with a deterministic fallback heuristic.
+func ParseVendorRef(target, vendorRoot string) (string, string, error) {
+	clean := strings.TrimPrefix(target, "@")
+	clean = strings.Trim(clean, "/")
+	parts := strings.Split(clean, "/")
+	if len(parts) < 2 {
+		return "", "", fmt.Errorf("malformed vendor reference (must contain bundle and concept): %s", target)
 	}
+
+	if vendorRoot == "" {
+		vendorRoot = filepath.Join(".okf", "vendor")
+	}
+
+	// 1. Check disk: does 2-segment bundle exist (.okf/vendor/org/bundle/index.md)?
+	if len(parts) >= 3 {
+		if _, err := os.Stat(filepath.Join(vendorRoot, parts[0], parts[1], "index.md")); err == nil {
+			return parts[0] + "/" + parts[1], strings.Join(parts[2:], "/"), nil
+		}
+	}
+
+	// 2. Check disk: does 1-segment bundle exist (.okf/vendor/bundle/index.md)?
+	if _, err := os.Stat(filepath.Join(vendorRoot, parts[0], "index.md")); err == nil {
+		return parts[0], strings.Join(parts[1:], "/"), nil
+	}
+
+	// 3. Fallback heuristic: standard concept directories
+	if len(parts) >= 3 && !isKnownConceptCategory(parts[1]) {
+		return parts[0] + "/" + parts[1], strings.Join(parts[2:], "/"), nil
+	}
+
+	return parts[0], strings.Join(parts[1:], "/"), nil
+}
+
+func isKnownConceptCategory(s string) bool {
+	switch strings.ToLower(s) {
+	case "decisions", "architecture", "convention", "roadmap", "project",
+		"requirements", "domain", "runbooks", "concepts", "facts", "entities",
+		"guides", "playbooks", "specs", "adr", "rfc", "api":
+		return true
+	default:
+		return false
+	}
+}
+
+// ParseURI parses canonical okf:// URIs or @-prefixed vendor references.
+// Examples:
+//
+//	okf://@peter/django-5-rules/decisions/auth -> (ScopeVendor, "peter/django-5-rules", "decisions/auth", nil)
+//	okf://@nextjs-15/decisions/routing         -> (ScopeVendor, "nextjs-15", "decisions/routing", nil)
+//	okf://user/preferences                     -> (ScopeUser, "", "preferences", nil)
+//	okf://system/compliance                    -> (ScopeSystem, "", "compliance", nil)
+//	@peter/django-5-rules/decisions/auth       -> (ScopeVendor, "peter/django-5-rules", "decisions/auth", nil)
+func ParseURI(rawURI string) (Scope, string, string, error) {
+	if strings.HasPrefix(rawURI, "@") {
+		bundleID, conceptID, err := ParseVendorRef(rawURI, "")
+		if err != nil {
+			return "", "", "", err
+		}
+		return ScopeVendor, bundleID, conceptID, nil
+	}
+
+	if !strings.HasPrefix(rawURI, "okf://") {
+		return "", "", "", fmt.Errorf("not an okf:// URI or @vendor reference")
+	}
+
 	stripped := strings.TrimPrefix(rawURI, "okf://")
+	if strings.HasPrefix(stripped, "@") {
+		bundleID, conceptID, err := ParseVendorRef(stripped, "")
+		if err != nil {
+			return "", "", "", err
+		}
+		return ScopeVendor, bundleID, conceptID, nil
+	}
+
 	parts := strings.Split(stripped, "/")
 	if len(parts) < 2 {
 		return "", "", "", fmt.Errorf("malformed okf:// URI: %s", rawURI)
@@ -50,30 +129,10 @@ func ParseURI(rawURI string) (Scope, string, string, error) {
 
 	scope := Scope(parts[0])
 	switch scope {
-	case ScopeVendor:
-		// Format: okf://vendor/<bundle-id>/<concept-id>
-		// Can be: okf://vendor/nextjs-15/decisions/routing (len 4)
-		// Or: okf://vendor/peter/django-5-rules/decisions/auth (len 5)
-		// Or with leading @: okf://vendor/@peter/django-5-rules/decisions/auth
-		if len(parts) >= 5 {
-			bundleID := strings.TrimPrefix(parts[1], "@") + "/" + parts[2]
-			conceptID := strings.Join(parts[3:], "/")
-			return scope, bundleID, conceptID, nil
-		}
-		if len(parts) >= 4 && strings.Contains(parts[2], "-") {
-			bundleID := strings.TrimPrefix(parts[1], "@") + "/" + parts[2]
-			conceptID := strings.Join(parts[3:], "/")
-			return scope, bundleID, conceptID, nil
-		}
-		bundleID := strings.TrimPrefix(parts[1], "@")
-		conceptID := strings.Join(parts[2:], "/")
-		return scope, bundleID, conceptID, nil
-
 	case ScopeUser, ScopeProject, ScopeSystem:
 		conceptID := strings.Join(parts[1:], "/")
 		return scope, "", conceptID, nil
-
 	default:
-		return "", "", "", fmt.Errorf("unknown scope: %s", scope)
+		return "", "", "", fmt.Errorf("unknown scope in URI: %s", scope)
 	}
 }

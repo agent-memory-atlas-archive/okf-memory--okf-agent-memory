@@ -1,9 +1,9 @@
 ---
 type: Decision
 title: "OKF Registry Client, Dependency Locking, and Multi-Scope Vendor Layering"
-description: "Decentralized package registry client, zero-dependency okf.lock manifest, multi-scope priority layering, and hermetic okf:// cross-scope URI routing."
+description: "Decentralized package registry client, zero-dependency okf.lock manifest, multi-scope priority layering, and hermetic @ cross-scope URI routing."
 tags: [registry, vendor, lockfile, multi-scope, layering, pull]
-generated: { by: agent/mcp, at: "2026-10-01T08:24:47Z" }
+generated: { by: agent/mcp, at: "2026-10-01T09:22:20Z" }
 status: stable
 ---
 
@@ -11,7 +11,7 @@ status: stable
 
 As autonomous agents and human developers scale memory across projects, standard domain rules, framework best practices (e.g. Next.js, Django), and organizational standards must be shared without manual copy-pasting or repository pollution.
 
-This architectural decision codifies the decentralized OKF Registry distribution model, the zero-dependency `okf.lock` manifest format, multi-scope prioritization semantics, and hermetic `okf://` cross-scope linking.
+This architectural decision codifies the decentralized OKF Registry distribution model, the zero-dependency `okf.lock` manifest format, multi-scope prioritization semantics, and hermetic `@` cross-scope linking.
 
 ---
 
@@ -80,14 +80,20 @@ bundles:
 
 ---
 
-## 4. Hermetic Cross-Scope Linking (`okf://`)
+## 4. Hermetic Cross-Scope Linking (`@` Prefix)
 
-To prevent broken link warnings in isolated environments, concepts reference external vendor bundles using the `okf://` URI scheme:
+To prevent broken link warnings and maintain unambiguous boundaries between local and external knowledge:
 
-* `okf://vendor/<bundle-id>/<concept-id>`
-* Shorthand: `@vendor/<bundle-id>/<concept-id>.md`
-
-Bundle validation (`okf validate --strict`) treats `okf://` and `@vendor/` URIs as hermetic external references, ensuring CI pipelines pass without requiring vendor dependencies to be co-located during isolated unit validation.
+* **Markdown Link Syntax**:
+  * Scoped Bundle: `@peter/django-5-rules/decisions/auth.md`
+  * Top-Level Bundle: `@nextjs-15/decisions/routing.md`
+* **Canonical URI Scheme**:
+  * Scoped Bundle: `okf://@peter/django-5-rules/decisions/auth`
+  * Top-Level Bundle: `okf://@nextjs-15/decisions/routing`
+* **Strict Disambiguation**:
+  * References with a leading `@` resolve strictly to `.okf/vendor/`.
+  * References without `@` (e.g. `nextjs-15/decisions/routing.md` or `decisions/auth.md`) resolve strictly to the local project bundle (`knowledge/`).
+  * Bundle validation (`okf validate --strict`) recognizes any `@`-prefixed reference as an external vendor package, guaranteeing 0 broken links in standalone CI.
 
 ---
 
