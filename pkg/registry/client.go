@@ -48,76 +48,86 @@ func (c *Client) Resolve(slugOrURL string) (*BundleManifest, error) {
 	}
 
 	cleanSlug := strings.Trim(strings.TrimSpace(slugOrURL), "/")
+	target := strings.TrimPrefix(cleanSlug, "@")
+
 	var slug, version string
-	if idx := strings.Index(cleanSlug, "@"); idx != -1 {
-		slug = cleanSlug[:idx]
-		version = cleanSlug[idx+1:]
+	if idx := strings.Index(target, "@"); idx != -1 {
+		slug = target[:idx]
+		version = target[idx+1:]
 	} else {
-		slug = cleanSlug
+		slug = target
 	}
 
-	// Try versioned endpoint first if specific version requested (e.g. bundles/nextjs-15-1.0.0.json)
-	var endpoint string
+	var candidateEndpoints []string
 	if version != "" {
-		endpoint = fmt.Sprintf("%s/bundles/%s-%s.json", c.BaseURL, slug, version)
+		candidateEndpoints = append(candidateEndpoints,
+			fmt.Sprintf("%s/bundles/%s-%s.json", c.BaseURL, slug, version),
+			fmt.Sprintf("%s/bundles/@%s-%s.json", c.BaseURL, slug, version),
+		)
 	} else {
-		endpoint = fmt.Sprintf("%s/bundles/%s.json", c.BaseURL, slug)
+		candidateEndpoints = append(candidateEndpoints,
+			fmt.Sprintf("%s/bundles/%s.json", c.BaseURL, slug),
+			fmt.Sprintf("%s/bundles/@%s.json", c.BaseURL, slug),
+		)
 	}
 
-	req, err := http.NewRequest("GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("invalid registry request: %w", err)
-	}
-	req.Header.Set("User-Agent", "okf-agent-memory-cli")
+	fetchManifest := func(endpoint string) (*BundleManifest, int, error) {
+		req, err := http.NewRequest("GET", endpoint, nil)
+		if err != nil {
+			return nil, 0, err
+		}
+		req.Header.Set("User-Agent", "okf-agent-memory-cli")
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return nil, 0, err
+		}
+		defer func() { _ = resp.Body.Close() }()
 
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("registry connection error: %w", err)
+		if resp.StatusCode == http.StatusOK {
+			var m BundleManifest
+			if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
+				return nil, resp.StatusCode, fmt.Errorf("malformed registry manifest: %w", err)
+			}
+			if strings.HasPrefix(m.DownloadURL, "/") {
+				m.DownloadURL = c.BaseURL + m.DownloadURL
+			}
+			return &m, http.StatusOK, nil
+		}
+		return nil, resp.StatusCode, nil
 	}
-	defer func() { _ = resp.Body.Close() }()
+
+	for _, ep := range candidateEndpoints {
+		m, status, err := fetchManifest(ep)
+		if err != nil {
+			return nil, err
+		}
+		if status == http.StatusOK && m != nil {
+			return m, nil
+		}
+	}
 
 	// If versioned endpoint was 404, fallback to base bundles/<slug>.json
-	if resp.StatusCode == http.StatusNotFound && version != "" {
-		baseEndpoint := fmt.Sprintf("%s/bundles/%s.json", c.BaseURL, slug)
-		baseReq, err := http.NewRequest("GET", baseEndpoint, nil)
-		if err == nil {
-			baseReq.Header.Set("User-Agent", "okf-agent-memory-cli")
-			if baseResp, err := c.HTTPClient.Do(baseReq); err == nil {
-				defer func() { _ = baseResp.Body.Close() }()
-				if baseResp.StatusCode == http.StatusOK {
-					var m BundleManifest
-					if err := json.NewDecoder(baseResp.Body).Decode(&m); err == nil {
-						if strings.TrimPrefix(m.Version, "v") != strings.TrimPrefix(version, "v") {
-							return nil, fmt.Errorf("bundle %q version %s not found in registry (latest is %s)", slug, version, m.Version)
-						}
-						if strings.HasPrefix(m.DownloadURL, "/") {
-							m.DownloadURL = c.BaseURL + m.DownloadURL
-						}
-						return &m, nil
-					}
+	if version != "" {
+		baseCandidates := []string{
+			fmt.Sprintf("%s/bundles/%s.json", c.BaseURL, slug),
+			fmt.Sprintf("%s/bundles/@%s.json", c.BaseURL, slug),
+		}
+		for _, baseEp := range baseCandidates {
+			m, status, err := fetchManifest(baseEp)
+			if err != nil {
+				return nil, err
+			}
+			if status == http.StatusOK && m != nil {
+				if strings.TrimPrefix(m.Version, "v") != strings.TrimPrefix(version, "v") {
+					return nil, fmt.Errorf("bundle %q version %s not found in registry (latest is %s)", slug, version, m.Version)
 				}
+				return m, nil
 			}
 		}
 		return nil, fmt.Errorf("bundle %q (version %s) not found in registry %s", slug, version, c.BaseURL)
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("bundle %q not found in registry %s", cleanSlug, c.BaseURL)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("registry returned status %s", resp.Status)
-	}
-
-	var m BundleManifest
-	if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
-		return nil, fmt.Errorf("malformed registry manifest: %w", err)
-	}
-
-	if strings.HasPrefix(m.DownloadURL, "/") {
-		m.DownloadURL = c.BaseURL + m.DownloadURL
-	}
-
-	return &m, nil
+	return nil, fmt.Errorf("bundle %q not found in registry %s", cleanSlug, c.BaseURL)
 }
 
 func (c *Client) resolveGitURL(rawURL string) (*BundleManifest, error) {

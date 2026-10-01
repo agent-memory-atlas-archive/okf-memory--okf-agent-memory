@@ -58,9 +58,12 @@ func TestClient_ResolveScopedAndTopLevel(t *testing.T) {
 	baseURL := "https://registry.okf-memory.dev"
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/bundles/peter/django-5-rules.json":
+		case "/bundles/peter/django-5-rules.json", "/bundles/peter/django-5-rules-1.0.0.json":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprintf(w, `{"id":"peter/django-5-rules","version":"1.0.0","hash":%q,"download_url":"/downloads/django.tar.gz"}`, hash)
+		case "/bundles/@acme/tools.json":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprintf(w, `{"id":"acme/tools","version":"2.0.0","hash":%q,"download_url":"/downloads/django.tar.gz"}`, hash)
 		case "/bundles/nextjs-15.json":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprintf(w, `{"id":"nextjs-15","version":"1.0.0","hash":%q,"download_url":"/downloads/nextjs.tar.gz"}`, hash)
@@ -79,13 +82,40 @@ func TestClient_ResolveScopedAndTopLevel(t *testing.T) {
 		return rec.Result(), nil
 	})
 
-	// Test Scoped ID (peter/django-5-rules)
+	// Test Scoped ID without @ (peter/django-5-rules)
 	manifest, err := client.Resolve("peter/django-5-rules")
 	if err != nil {
 		t.Fatalf("Resolve scoped failed: %v", err)
 	}
 	if manifest.ID != "peter/django-5-rules" || manifest.Hash != hash {
 		t.Fatalf("unexpected manifest: %+v", manifest)
+	}
+
+	// Test Scoped ID with leading @ (@peter/django-5-rules)
+	manifestWithAt, err := client.Resolve("@peter/django-5-rules")
+	if err != nil {
+		t.Fatalf("Resolve scoped with leading @ failed: %v", err)
+	}
+	if manifestWithAt.ID != "peter/django-5-rules" {
+		t.Fatalf("unexpected manifest ID for @peter/django-5-rules: %s", manifestWithAt.ID)
+	}
+
+	// Test Scoped ID with leading @ and version (@peter/django-5-rules@1.0.0)
+	manifestWithVer, err := client.Resolve("@peter/django-5-rules@1.0.0")
+	if err != nil {
+		t.Fatalf("Resolve scoped with version failed: %v", err)
+	}
+	if manifestWithVer.Version != "1.0.0" {
+		t.Fatalf("unexpected version for @peter/django-5-rules@1.0.0: %s", manifestWithVer.Version)
+	}
+
+	// Test Scoped ID on server endpoint hosted with @ (/bundles/@acme/tools.json)
+	manifestServerAt, err := client.Resolve("@acme/tools")
+	if err != nil {
+		t.Fatalf("Resolve scoped on @ server endpoint failed: %v", err)
+	}
+	if manifestServerAt.ID != "acme/tools" || manifestServerAt.Version != "2.0.0" {
+		t.Fatalf("unexpected manifest for @acme/tools: %+v", manifestServerAt)
 	}
 
 	targetDir := filepath.Join(t.TempDir(), "vendor", "peter", "django-5-rules")

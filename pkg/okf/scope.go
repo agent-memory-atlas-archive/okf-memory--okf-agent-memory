@@ -54,17 +54,18 @@ func ParseURI(rawURI string) (Scope, string, string, error) {
 		// Format: okf://vendor/<bundle-id>/<concept-id>
 		// Can be: okf://vendor/nextjs-15/decisions/routing (len 4)
 		// Or: okf://vendor/peter/django-5-rules/decisions/auth (len 5)
+		// Or with leading @: okf://vendor/@peter/django-5-rules/decisions/auth
 		if len(parts) >= 5 {
-			bundleID := parts[1] + "/" + parts[2]
+			bundleID := strings.TrimPrefix(parts[1], "@") + "/" + parts[2]
 			conceptID := strings.Join(parts[3:], "/")
 			return scope, bundleID, conceptID, nil
 		}
 		if len(parts) >= 4 && strings.Contains(parts[2], "-") {
-			bundleID := parts[1] + "/" + parts[2]
+			bundleID := strings.TrimPrefix(parts[1], "@") + "/" + parts[2]
 			conceptID := strings.Join(parts[3:], "/")
 			return scope, bundleID, conceptID, nil
 		}
-		bundleID := parts[1]
+		bundleID := strings.TrimPrefix(parts[1], "@")
 		conceptID := strings.Join(parts[2:], "/")
 		return scope, bundleID, conceptID, nil
 

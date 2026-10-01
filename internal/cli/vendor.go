@@ -44,7 +44,7 @@ func cmdVendor(args []string) {
 			exitFunc(1)
 			return
 		}
-		bundleID := args[1]
+		bundleID := strings.TrimPrefix(args[1], "@")
 		vendorDir := filepath.Join(".okf", "vendor", filepath.FromSlash(bundleID))
 
 		lf, err := lock.ReadLockfile("okf.lock")
