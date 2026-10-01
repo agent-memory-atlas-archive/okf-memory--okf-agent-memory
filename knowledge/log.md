@@ -1,3 +1,9 @@
+## 2026-10-01
+* **Release**: Prepared version v0.5.0: OKF Registry integration (`registry.okf-memory.dev`), zero-dependency `okf.lock` manifest, multi-scope priority layering, `okf pull`, `okf restore`, `okf vendor`, multi-scope composite BM25 indexing, and hermetic `okf://` cross-scope linking.
+* **Update**: Linked `architecture/layers.md` to `architecture/registry-and-vendor-layering.md` (Multi-scope resolution and registry distribution expand the tooling and knowledge layers).
+* **Update**: Updated concept `roadmap/milestones.md` adding Phase 19 (OKF Registry & Multi-Scope Vendor Layering).
+* **Creation**: Documented concept `architecture/registry-and-vendor-layering.md` (OKF Registry Client, Dependency Locking, and Multi-Scope Vendor Layering).
+
 ## 2026-09-27
 * **Release**: Published version v0.4.4: Metadata mutation parity for CLI and MCP (#38, #39), core MCP server and Hub sync decoupling into dedicated packages, generic frontmatter query filter AST evaluation (`--filter`), temporal staleness horizon projection (`--stale-within`), and drift validation link resolution fix (#41).
 * **Fix**: Resolved false positive parent index warnings in drift validation for bundle-absolute and dot-relative links (#41).

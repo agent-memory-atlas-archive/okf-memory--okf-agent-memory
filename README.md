@@ -154,6 +154,18 @@ This generates the standalone binary at `bin/okf`.
 # Zero-Knowledge Sync: push or sync changes with the Hub (optional: --token or OKF_HUB_TOKEN)
 ./bin/okf hub push knowledge --password "pass" --secret-key "XXXX-..." --auth-token "my-token"
 ./bin/okf hub sync knowledge --password "pass" --secret-key "XXXX-..."
+
+# Pull external knowledge bundles from OKF Registry (registry.okf-memory.dev) or Git
+./bin/okf pull nextjs-15
+./bin/okf pull peter/django-5-rules
+./bin/okf pull github.com/acme/agent-rules@v1.0.0
+
+# Restore all locked vendor bundles in fresh environments
+./bin/okf restore
+
+# Inspect and manage installed vendor bundles
+./bin/okf vendor list
+./bin/okf vendor remove nextjs-15
 ```
 
 ### 3. Bootstrapping Agent Memory in Any Project
@@ -211,7 +223,7 @@ okf-agent-memory/
 │   ├── spec/               # OKF convention v0.1, compatibility analysis & architecture RFCs
 │   ├── security/           # Data governance, secret prevention & adversarial security audits
 │   ├── project/            # Project roadmap, release playbook & multi-agent testing
-│   └── releases/           # Versioned release notes & changelog archive (v0.1.0 - v0.4.4)
+│   └── releases/           # Versioned release notes & changelog archive (v0.1.0 - v0.5.0)
 ├── examples/               # Domain-neutral reference DMAA projects (AGENTS.md + OKF v0.2 knowledge/)
 │   ├── books/              # Literature & editorial analysis repository
 │   ├── coaching/           # Executive coaching & client session repository
@@ -225,8 +237,13 @@ okf-agent-memory/
 │   └── roadmap/            # Milestones
 ├── packaging/              # Distribution packaging
 │   └── homebrew/           # Official Homebrew formula & tap instructions
-├── pkg/okf/                # Zero-dependency Go core library (parser, validator, BM25, MCP, bootstrap)
-│   └── assets/             # Embedded bootstrap templates & skills mirrored via `make sync-assets`
+├── pkg/
+│   ├── lock/               # Zero-dependency okf.lock parser & serializer
+│   ├── okf/                # Core library (parser, validator, BM25, MCP, bootstrap)
+│   │   └── assets/         # Embedded bootstrap templates & skills mirrored via `make sync-assets`
+│   ├── registry/           # Decentralized OKF Registry client & archive unpacker
+│   ├── sync/               # Blind sync engine, 3-way reconcile & hub client/server
+│   └── vault/              # AES-256-GCM envelope crypto, Argon2id KDF & CAS blind storage
 ├── scripts/                # Verification & automated audit review helpers (e.g. Jules integration)
 ├── AGENTS.md               # Operating instructions for AI coding agents
 ├── CONTRIBUTING.md         # Contribution guidelines & development workflow
