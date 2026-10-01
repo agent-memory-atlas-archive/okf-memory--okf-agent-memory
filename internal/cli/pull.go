@@ -31,8 +31,9 @@ Flags:
 Examples:
   okf pull
   okf pull nextjs-15
-  okf pull peter/django-5-rules
-  okf pull github.com/acme/agent-rules`)
+  okf pull @peter/django-5-rules
+  okf pull peter/django-5-rules@1.0.0
+  okf pull github.com/acme/agent-rules@v1.0.0`)
 }
 
 func cmdPull(args []string) {

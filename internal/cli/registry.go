@@ -51,6 +51,7 @@ func renderUsageTo(w io.Writer) {
 	p("  %-22s %s\n\n", "help", "Show this help message")
 
 	p(`Flags:
+  --scope <layer>        Memory layer to search: all, project, bundle, vendor, user, system (default: all)
   --for-path <path>      Filter concepts governing a file path via code_refs (search)
   --filter <expr>        Filter concepts by frontmatter key-value predicates (search)
   --stale-within <dur>   Filter or gate concepts becoming stale within relative duration

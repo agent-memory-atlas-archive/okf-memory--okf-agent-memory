@@ -17,7 +17,12 @@ func printVendorUsage() {
 
 Commands:
   list     List installed vendor bundles
-  remove   Uninstall a vendor bundle (okf vendor remove <bundle-id>)`)
+  remove   Uninstall a vendor bundle (okf vendor remove <bundle-id>)
+
+Examples:
+  okf vendor list
+  okf vendor remove nextjs-15
+  okf vendor remove @peter/django-5-rules`)
 }
 
 func cmdVendor(args []string) {

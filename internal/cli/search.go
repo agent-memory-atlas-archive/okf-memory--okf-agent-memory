@@ -49,13 +49,18 @@ Examples:
 }
 
 func printShowUsage() {
-	fmt.Printf(`Display concept details, metadata, relationships, and body content.
+	fmt.Printf(`Display concept details, metadata, relationships, and body content across memory scopes.
 
 Usage:
   okf show <concept-id> [bundle] [flags]
 
 Arguments:
-  <concept-id>           Unique concept identifier (e.g. 'architecture/database' or 'decisions/adr-001')
+  <concept-id>           Unique concept identifier or scoped reference:
+                           - Local project: 'architecture/database' or 'decisions/adr-001'
+                           - Vendor bundle: '@nextjs-15/decisions/routing' or '@org/bundle/concept'
+                           - User memory:   'user:preferences/style'
+                           - System memory: 'system:corp/policies'
+                           - Canonical URN: 'okf://@nextjs-15/routing', 'okf://user/...', etc.
   [bundle]               Path to OKF bundle directory (default: 'knowledge' or '.')
 
 Flags:
@@ -64,6 +69,9 @@ Flags:
 
 Examples:
   okf show architecture/database knowledge
+  okf show @nextjs-15/decisions/routing
+  okf show user:preferences/style
+  okf show system:corp/policies
   okf show decisions/adr-001 --raw
   okf show architecture/auth --json
 `)
