@@ -168,7 +168,57 @@ This generates the standalone binary at `bin/okf`.
 ./bin/okf vendor remove nextjs-15
 ```
 
-### 3. Bootstrapping Agent Memory in Any Project
+### 3. Multi-Scope Memory Layering & Scoped Resolution
+
+OKF Agent Memory organises knowledge across four deterministic memory scopes. Higher layers strictly shadow identical concept IDs in lower layers during search, ensuring local project decisions always take precedence over external upstream packages or machine baselines:
+
+```mermaid
+flowchart TD
+    subgraph Scopes ["OKF 4-Tier Memory Hierarchy"]
+        P["<b>Project</b> (Priority 100)<br/>Prefix: <i>none</i> (e.g. decisions/auth)<br/>Location: ./knowledge/"]
+        V["<b>Vendor</b> (Priority 70)<br/>Prefix: @bundle/... (e.g. @nextjs-15/routing)<br/>Location: .okf/vendor/"]
+        U["<b>User</b> (Priority 50)<br/>Prefix: user:... (e.g. user:guidelines/style)<br/>Location: ~/.okf/"]
+        S["<b>System</b> (Priority 10)<br/>Prefix: system:... (e.g. system:corp/policy)<br/>Location: /etc/okf/"]
+    end
+
+    P -->|shadows| V
+    V -->|shadows| U
+    U -->|shadows| S
+```
+
+#### Scope Specification Matrix
+
+| Scope | Link / Reference Syntax | Canonical URN | Storage Location | Priority | Precedence & Rules |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`project`** | `decisions/auth.md` | *(bundle relative)* | `./knowledge/` | **100** | **Local Project Memory.** Authoritative SSoT for current repository; strictly shadows identical IDs from vendor, user, and system layers. |
+| **`vendor`** | `@nextjs-15/routing.md`<br/>`@peter/django-rules/auth.md` | `okf://@nextjs-15/routing`<br/>`okf://@peter/django-rules/auth` | `.okf/vendor/<bundle>/` | **70** | **External Packages.** Pinned dependencies pulled from OKF Registry (`registry.okf-memory.dev`) or Git. Shadows user and system. |
+| **`user`** | `user:guidelines/style.md` | `okf://user/guidelines/style` | `~/.okf/` | **50** | **Personal Agent Memory.** Developer preferences and cross-project notes. Shadows system. |
+| **`system`** | `system:corp/policies.md` | `okf://system/corp/policies` | `/etc/okf/` | **10** | **Enterprise / Machine Memory.** Infrastructure baselines and compliance policies. |
+
+#### Filtering by Scope in Search & Show
+
+```bash
+# Default (--scope all): Search across all layers with automatic shadowing & priority ranking
+./bin/okf search "authentication"
+
+# Search strictly within vendor packages
+./bin/okf search "routing" --scope vendor
+
+# Search strictly within local project memory (or use alias --scope bundle)
+./bin/okf search "architecture" --scope project
+
+# Search user or system layers
+./bin/okf search "style" --scope user
+./bin/okf search "compliance" --scope system
+
+# Inspect concepts across scopes
+./bin/okf show decisions/auth                        # Local project concept
+./bin/okf show @nextjs-15/decisions/routing         # Vendor package concept
+./bin/okf show user:guidelines/style                # Personal user concept
+./bin/okf show system:corp/policies                 # System compliance concept
+```
+
+### 4. Bootstrapping Agent Memory in Any Project
 
 Scaffold the complete OKF Agent Memory architecture into any new or existing repository with a single command:
 

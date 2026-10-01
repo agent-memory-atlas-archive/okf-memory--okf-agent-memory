@@ -39,8 +39,18 @@ flowchart TD
     U -->|Shadows identical IDs| SYS
 ```
 
-* **Shadowing Invariant**: Local project concepts (`priority: 100`) strictly shadow vendor concepts (`priority: 70`) of the same relative ID.
-* **Composite BM25 Indexing**: Searches across scopes combine document frequencies while respecting scope precedence.
+* **Shadowing Invariant**: Local project concepts (`priority: 100`) strictly shadow vendor concepts (`priority: 70`), which in turn shadow user concepts (`priority: 50`) and system concepts (`priority: 10`) of the same relative ID.
+* **Composite BM25 Indexing**: Searches across scopes combine document frequencies while strictly sorting by layer priority.
+* **Scope Specification Matrix**:
+
+| Scope | Link / Reference Syntax | Canonical URN | Storage Location | Priority | Precedence & Behavior |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`project`** | `decisions/routing.md` | *(bundle relative)* | `./knowledge/` | **100** | Authoritative local project memory. Strictly shadows identical IDs across vendor, user, and system layers. |
+| **`vendor`** | `@nextjs-15/routing.md`<br/>`@peter/django-rules/auth.md` | `okf://@nextjs-15/routing`<br/>`okf://@peter/django-rules/auth` | `.okf/vendor/<bundle>/` | **70** | External packages pulled via `okf pull`. Strictly shadows user and system layers. |
+| **`user`** | `user:guidelines/style.md` | `okf://user/guidelines/style` | `~/.okf/` | **50** | Personal developer preferences and cross-project notes. Strictly shadows system layer. |
+| **`system`** | `system:corp/policies.md` | `okf://system/corp/policies` | `/etc/okf/` | **10** | Machine-level and enterprise compliance standards. |
+
+* **Layer-Filtered Search (`--scope`)**: `okf search` supports `--scope <all|project|bundle|vendor|user|system>` (default: `all`).
 
 ---
 
@@ -85,15 +95,19 @@ bundles:
 To prevent broken link warnings and maintain unambiguous boundaries between local and external knowledge:
 
 * **Markdown Link Syntax**:
-  * Scoped Bundle: `@peter/django-5-rules/decisions/auth.md`
-  * Top-Level Bundle: `@nextjs-15/decisions/routing.md`
+  * Scoped Vendor Bundle: `@peter/django-5-rules/decisions/auth.md`
+  * Top-Level Vendor Bundle: `@nextjs-15/decisions/routing.md`
+  * User Memory: `user:guidelines/style.md`
+  * System Memory: `system:corp/policies.md`
 * **Canonical URI Scheme**:
-  * Scoped Bundle: `okf://@peter/django-5-rules/decisions/auth`
-  * Top-Level Bundle: `okf://@nextjs-15/decisions/routing`
-* **Strict Disambiguation**:
+  * Vendor: `okf://@nextjs-15/decisions/routing`
+  * User: `okf://user/guidelines/style`
+  * System: `okf://system/corp/policies`
+* **Strict Disambiguation & Validator Rules**:
   * References with a leading `@` resolve strictly to `.okf/vendor/`.
-  * References without `@` (e.g. `nextjs-15/decisions/routing.md` or `decisions/auth.md`) resolve strictly to the local project bundle (`knowledge/`).
-  * Bundle validation (`okf validate --strict`) recognizes any `@`-prefixed reference as an external vendor package, guaranteeing 0 broken links in standalone CI.
+  * References with `user:` and `system:` resolve to user (`~/.okf/`) and system (`/etc/okf/`) layers.
+  * References without prefix (e.g. `decisions/routing.md`) resolve strictly to the local project bundle (`knowledge/`).
+  * Bundle validation (`okf validate --strict`) recognizes all external references (`@`, `user:`, `system:`, `okf://`, `https://`) without failing or emitting broken link errors, and avoids false-positive orphan detection for concepts referencing external knowledge.
 
 ---
 

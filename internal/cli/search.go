@@ -106,7 +106,8 @@ func cmdSearch(args []string) {
 	case "all", "project", "bundle", "vendor", "user", "system":
 	default:
 		fmt.Fprintf(os.Stderr, "Error: invalid --scope '%s' (allowed: all, project, bundle, vendor, user, system)\n", *scopeFlag)
-		os.Exit(1)
+		exitFunc(1)
+		return
 	}
 
 	fallback := "."
@@ -140,7 +141,8 @@ func cmdSearch(args []string) {
 
 	if query == "" && *forPath == "" && *filter == "" && *staleWithinStr == "" {
 		fmt.Fprintln(os.Stderr, "Usage: okf search [query] [bundle] [--scope <all|project|vendor|user|system>] [--for-path <path>] [--filter <expr>] [--stale-within <duration>] [--limit N] [--json]")
-		os.Exit(1)
+		exitFunc(1)
+		return
 	}
 
 	var staleWithin time.Duration
@@ -148,7 +150,8 @@ func cmdSearch(args []string) {
 		d, err := okf.ParseRelativeDuration(*staleWithinStr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: invalid --stale-within duration: %v\n", err)
-			os.Exit(1)
+			exitFunc(1)
+			return
 		}
 		staleWithin = d
 	}
@@ -175,13 +178,15 @@ func cmdSearch(args []string) {
 		if err != nil {
 			if targetScope != "all" {
 				fmt.Fprintf(os.Stderr, "Error loading bundle: %v\n", err)
-				os.Exit(2)
+				exitFunc(2)
+				return
 			}
 		} else {
 			pResults, err := b.SearchAdvanced(searchOpts)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Search error: %v\n", err)
-				os.Exit(1)
+				exitFunc(1)
+				return
 			}
 			for i := range pResults {
 				pResults[i].Scope = okf.ScopeProject
@@ -211,13 +216,18 @@ func cmdSearch(args []string) {
 					if err == nil {
 						vResults, _ := vb.SearchAdvanced(searchOpts)
 						for _, vr := range vResults {
-							if !seenConcepts[vr.ConceptID] {
+							rawID := vr.ConceptID
+							if !seenConcepts[rawID] {
 								vr.Scope = okf.ScopeVendor
 								vr.Priority = okf.PriorityVendor
 								vr.Origin = fmt.Sprintf("@%s", bundleID)
-								vr.ConceptID = fmt.Sprintf("@%s/%s", bundleID, vr.ConceptID)
+								vr.ConceptID = fmt.Sprintf("@%s/%s", bundleID, rawID)
 								results = append(results, vr)
+								seenConcepts[rawID] = true
 							}
+						}
+						for id := range vb.Concepts {
+							seenConcepts[id] = true
 						}
 					}
 					return filepath.SkipDir
@@ -229,9 +239,8 @@ func cmdSearch(args []string) {
 
 	// 3. Search User Layer (Priority 50)
 	if searchUser {
-		homeDir, _ := os.UserHomeDir()
-		if homeDir != "" {
-			userDir := filepath.Join(homeDir, ".okf")
+		userDir := resolveUserDir()
+		if userDir != "" {
 			if info, err := os.Stat(userDir); err == nil && info.IsDir() {
 				cand := userDir
 				if kInfo, kErr := os.Stat(filepath.Join(userDir, "knowledge")); kErr == nil && kInfo.IsDir() {
@@ -240,14 +249,18 @@ func cmdSearch(args []string) {
 				if ub, err := okf.LoadBundle(cand); err == nil {
 					uResults, _ := ub.SearchAdvanced(searchOpts)
 					for _, ur := range uResults {
-						if !seenConcepts[ur.ConceptID] {
+						rawID := ur.ConceptID
+						if !seenConcepts[rawID] {
 							ur.Scope = okf.ScopeUser
 							ur.Priority = okf.PriorityUser
 							ur.Origin = "user"
-							ur.ConceptID = fmt.Sprintf("user:%s", ur.ConceptID)
+							ur.ConceptID = fmt.Sprintf("user:%s", rawID)
 							results = append(results, ur)
-							seenConcepts[ur.ConceptID] = true
+							seenConcepts[rawID] = true
 						}
+					}
+					for id := range ub.Concepts {
+						seenConcepts[id] = true
 					}
 				}
 			}
@@ -256,22 +269,28 @@ func cmdSearch(args []string) {
 
 	// 4. Search System Layer (Priority 10)
 	if searchSystem {
-		sysDir := "/etc/okf"
-		if info, err := os.Stat(sysDir); err == nil && info.IsDir() {
-			cand := sysDir
-			if kInfo, kErr := os.Stat(filepath.Join(sysDir, "knowledge")); kErr == nil && kInfo.IsDir() {
-				cand = filepath.Join(sysDir, "knowledge")
-			}
-			if sb, err := okf.LoadBundle(cand); err == nil {
-				sResults, _ := sb.SearchAdvanced(searchOpts)
-				for _, sr := range sResults {
-					if !seenConcepts[sr.ConceptID] {
-						sr.Scope = okf.ScopeSystem
-						sr.Priority = okf.PrioritySystem
-						sr.Origin = "system"
-						sr.ConceptID = fmt.Sprintf("system:%s", sr.ConceptID)
-						results = append(results, sr)
-						seenConcepts[sr.ConceptID] = true
+		sysDir := resolveSystemDir()
+		if sysDir != "" {
+			if info, err := os.Stat(sysDir); err == nil && info.IsDir() {
+				cand := sysDir
+				if kInfo, kErr := os.Stat(filepath.Join(sysDir, "knowledge")); kErr == nil && kInfo.IsDir() {
+					cand = filepath.Join(sysDir, "knowledge")
+				}
+				if sb, err := okf.LoadBundle(cand); err == nil {
+					sResults, _ := sb.SearchAdvanced(searchOpts)
+					for _, sr := range sResults {
+						rawID := sr.ConceptID
+						if !seenConcepts[rawID] {
+							sr.Scope = okf.ScopeSystem
+							sr.Priority = okf.PrioritySystem
+							sr.Origin = "system"
+							sr.ConceptID = fmt.Sprintf("system:%s", rawID)
+							results = append(results, sr)
+							seenConcepts[rawID] = true
+						}
+					}
+					for id := range sb.Concepts {
+						seenConcepts[id] = true
 					}
 				}
 			}
@@ -391,13 +410,12 @@ func cmdShow(args []string) {
 	case okf.ScopeVendor:
 		bundleDir = filepath.Join(".okf", "vendor", filepath.FromSlash(showBundleID))
 	case okf.ScopeUser:
-		homeDir, _ := os.UserHomeDir()
-		bundleDir = filepath.Join(homeDir, ".okf")
+		bundleDir = resolveUserDir()
 		if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
 			bundleDir = filepath.Join(bundleDir, "knowledge")
 		}
 	case okf.ScopeSystem:
-		bundleDir = "/etc/okf"
+		bundleDir = resolveSystemDir()
 		if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
 			bundleDir = filepath.Join(bundleDir, "knowledge")
 		}
@@ -446,4 +464,21 @@ func cmdShow(args []string) {
 	}
 	fmt.Println("\n--- Body ---")
 	fmt.Println(strings.TrimSpace(c.Body))
+}
+
+func resolveUserDir() string {
+	if dir := os.Getenv("OKF_USER_DIR"); dir != "" {
+		return dir
+	}
+	if homeDir, err := os.UserHomeDir(); err == nil && homeDir != "" {
+		return filepath.Join(homeDir, ".okf")
+	}
+	return ""
+}
+
+func resolveSystemDir() string {
+	if dir := os.Getenv("OKF_SYSTEM_DIR"); dir != "" {
+		return dir
+	}
+	return "/etc/okf"
 }
