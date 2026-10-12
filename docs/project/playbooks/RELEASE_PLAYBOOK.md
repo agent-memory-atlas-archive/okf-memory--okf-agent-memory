@@ -207,7 +207,6 @@ After pushing the tag, verify all automated distribution channels:
      - `okf-darwin-arm64`, `okf-darwin-amd64`
      - `okf-linux-arm64`, `okf-linux-amd64`
      - `okf-windows-arm64.exe`, `okf-windows-amd64.exe`
-     - `okf-starter-pack-v<X.Y.Z>.tar.gz` & `.zip`
      - `checksums.txt`
      - `Formula/okf.rb`
 

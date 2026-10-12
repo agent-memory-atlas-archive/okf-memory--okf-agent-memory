@@ -10,3 +10,4 @@
 * [Governance vs. Execution Context and Code Binding](governance-model.md) - 3-tier epistemic governance model (constraint, hold, context) and code-to-knowledge binding via code_refs.
 * [Zero-Knowledge Vault Cryptography and Blind Sync Architecture](zero-knowledge-vault-sync.md) - Client-side zero-knowledge AES-256-GCM envelope encryption, Argon2id KDF, CAS blind storage, 3-way reconcile sync protocol, and Bearer auth.
 * [OKF Registry Client, Dependency Locking, and Multi-Scope Vendor Layering](registry-and-vendor-layering.md) - Decentralized package registry client, zero-dependency okf.lock manifest, multi-scope priority layering, and hermetic @ cross-scope URI routing.
+* [Retirement of Standalone Starter-Pack Distribution Archives](starter-pack-retirement.md) - Retirement of standalone starter-pack zip and tar.gz archives in favor of okf bootstrap CLI scaffolding.
