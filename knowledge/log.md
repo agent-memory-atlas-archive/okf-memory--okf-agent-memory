@@ -1,4 +1,5 @@
 ## 2026-10-12
+* **Release**: Published version v0.6.1: persistent sync engine state across CLI invocations to eliminate 409 head conflicts and local edit revert collisions (#51, #53), symmetrical tokenized BM25 DF/TF scoring with exact matching for short stems (< 4 runes) and metadata frequency caps against keyword stuffing (#42), and streamlined dependency/tool update targets.
 * **Update**: Updated concept `architecture/search-tokenization.md`.
 
 ## 2026-10-04
