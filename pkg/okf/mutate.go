@@ -553,13 +553,17 @@ func hasRelationship(body, relPath, relationDesc string) bool {
 		if inFence {
 			continue
 		}
+		clean := trimmed
+		if strings.HasPrefix(clean, "- ") || strings.HasPrefix(clean, "* ") {
+			clean = clean[2:]
+		}
 		if relationDesc == "" {
-			if strings.HasPrefix(trimmed, "- Related to [") && strings.HasSuffix(trimmed, "]("+relPath+")") {
+			if (strings.HasPrefix(trimmed, "- Related to [") || strings.HasPrefix(trimmed, "* Related to [") || strings.HasPrefix(clean, "Related to [") || strings.HasPrefix(clean, "[")) && strings.Contains(clean, "]("+relPath+")") {
 				return true
 			}
 			continue
 		}
-		if strings.HasPrefix(trimmed, "- [") && strings.HasSuffix(trimmed, "]("+relPath+"): "+relationDesc) {
+		if (strings.HasPrefix(clean, "[") || strings.HasPrefix(trimmed, "- [") || strings.HasPrefix(trimmed, "* [")) && (strings.HasSuffix(trimmed, "]("+relPath+"): "+relationDesc) || strings.HasSuffix(clean, "]("+relPath+"): "+relationDesc)) {
 			return true
 		}
 	}
@@ -581,9 +585,39 @@ func insertRelationship(body, relLine string) string {
 	return before + "\n" + relLine + "\n\n" + after + "\n"
 }
 
+func parseHeading(line string) (int, string) {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "#") {
+		return 0, ""
+	}
+	level := 0
+	for level < len(trimmed) && trimmed[level] == '#' {
+		level++
+	}
+	if level > 6 || level == len(trimmed) || trimmed[level] != ' ' {
+		return 0, ""
+	}
+	title := strings.TrimSpace(trimmed[level:])
+	return level, title
+}
+
+func isRelatedHeading(title string) bool {
+	norm := strings.TrimSpace(strings.ToLower(title))
+	for len(norm) > 0 {
+		r := rune(norm[0])
+		if (r >= '0' && r <= '9') || r == '.' || r == '-' || r == ')' || r == ' ' || r == ':' {
+			norm = strings.TrimSpace(norm[1:])
+		} else {
+			break
+		}
+	}
+	return norm == "related concepts" || norm == "related" || strings.HasPrefix(norm, "related concepts")
+}
+
 func relatedSectionBounds(lines []string) (int, int, bool) {
 	inFence := false
 	start := -1
+	startLevel := 0
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "```") {
@@ -594,12 +628,13 @@ func relatedSectionBounds(lines []string) (int, int, bool) {
 			continue
 		}
 		if start == -1 {
-			if trimmed == "# Related Concepts" || trimmed == "# Related" {
+			if level, title := parseHeading(line); level > 0 && isRelatedHeading(title) {
 				start = i + 1
+				startLevel = level
 			}
 			continue
 		}
-		if strings.HasPrefix(trimmed, "# ") {
+		if level, _ := parseHeading(line); level > 0 && level <= startLevel {
 			return start, i, true
 		}
 	}
