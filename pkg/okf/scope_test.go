@@ -207,3 +207,123 @@ We build upon vendor standards and external rules:
 		t.Errorf("expected IsConformant=true, but failed")
 	}
 }
+
+func TestSearchLayered_VendorCompositeIDF(t *testing.T) {
+	tmpDir := t.TempDir()
+	vendorRoot := filepath.Join(tmpDir, ".okf", "vendor")
+
+	writeConcept := func(bundle, rel, cType, title, desc, body string) {
+		t.Helper()
+		full := filepath.Join(vendorRoot, bundle, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		content := "---\ntype: " + cType + "\ntitle: " + title + "\ndescription: " + desc + "\n---\n\n" + body + "\n"
+		if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, b := range []string{"nextjs-15", "django-5"} {
+		dir := filepath.Join(vendorRoot, b)
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		idx := "---\nokf_version: \"0.2\"\n---\n\n# " + b + "\n"
+		if err := os.WriteFile(filepath.Join(dir, "index.md"), []byte(idx), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Next.js package: every concept is about Next.js
+	writeConcept("nextjs-15", "decisions/routing.md", "decision", "Next.js routing",
+		"Use the Next.js App Router for all routing.",
+		"Next.js routing is file-based: each folder under app/ is a route segment. Use the App Router; do not mix it with the Pages Router.")
+	writeConcept("nextjs-15", "decisions/data-fetching.md", "decision", "Data fetching in Next.js",
+		"Fetch data in Next.js server components.",
+		"In Next.js, fetch data in server components and cache it with revalidate.")
+	writeConcept("nextjs-15", "decisions/images.md", "decision", "Images in Next.js",
+		"Use next/image in Next.js.",
+		"Next.js optimizes images via the Image component.")
+	writeConcept("nextjs-15", "decisions/styling.md", "decision", "Styling in Next.js",
+		"CSS modules in Next.js.",
+		"Next.js supports CSS modules out of the box.")
+	writeConcept("nextjs-15", "decisions/deploy.md", "decision", "Deploying Next.js",
+		"Deploy Next.js on Vercel or a Node server.",
+		"A Next.js app can be deployed on a standalone Node server.")
+
+	// Django package: one concept mentions Next.js in passing
+	writeConcept("django-5", "decisions/urls.md", "decision", "URL configuration",
+		"Django URL patterns.",
+		"Declare URL patterns in urls.py with path() and include(). Keep routing in Django for server-rendered pages.")
+	writeConcept("django-5", "decisions/frontend.md", "decision", "Frontend integration",
+		"Pairing Django with a JS frontend.",
+		"If the frontend is Next.js, expose a REST API from Django and leave page routing to the frontend.")
+	writeConcept("django-5", "decisions/orm.md", "decision", "ORM usage",
+		"Use the Django ORM.",
+		"Prefer select_related to avoid N+1 queries.")
+	writeConcept("django-5", "decisions/auth.md", "decision", "Authentication",
+		"Django auth.",
+		"Use django-allauth.")
+	writeConcept("django-5", "decisions/admin.md", "decision", "Admin",
+		"Django admin.",
+		"Restrict the admin to staff.")
+
+	// Query: "next.js server"
+	// With composite vendor IDF, the Next.js concepts containing both "next.js" and "server"
+	// (@nextjs-15/decisions/data-fetching and @nextjs-15/decisions/deploy) must rank above
+	// @django-5/decisions/frontend (which mentions Next.js in passing and does not contain "server").
+	resServer, err := okf.SearchLayered(okf.LayeredSearchOptions{
+		BundleDir:  filepath.Join(tmpDir, "none"),
+		VendorRoot: vendorRoot,
+		UserDir:    filepath.Join(tmpDir, "none"),
+		SystemDir:  filepath.Join(tmpDir, "none"),
+		Scope:      "vendor",
+		SearchOpts: okf.SearchOptions{
+			Query: "next.js server",
+			Limit: 10,
+		},
+	})
+	if err != nil {
+		t.Fatalf("SearchLayered failed: %v", err)
+	}
+	if len(resServer) < 3 {
+		t.Fatalf("expected at least 3 results for 'next.js server', got %d", len(resServer))
+	}
+
+	topTwo := map[string]bool{
+		resServer[0].ConceptID: true,
+		resServer[1].ConceptID: true,
+	}
+	if !topTwo["@nextjs-15/decisions/data-fetching"] || !topTwo["@nextjs-15/decisions/deploy"] {
+		t.Errorf("expected @nextjs-15/decisions/data-fetching and @nextjs-15/decisions/deploy as top 2 results, got: %s (%.2f), %s (%.2f), %s (%.2f)",
+			resServer[0].ConceptID, resServer[0].Score,
+			resServer[1].ConceptID, resServer[1].Score,
+			resServer[2].ConceptID, resServer[2].Score)
+	}
+
+	// Query: "next.js"
+	// A concept whose title, description, and body are about Next.js must score higher than
+	// a concept in another package that only mentions Next.js once in the body.
+	resNext, err := okf.SearchLayered(okf.LayeredSearchOptions{
+		BundleDir:  filepath.Join(tmpDir, "none"),
+		VendorRoot: vendorRoot,
+		UserDir:    filepath.Join(tmpDir, "none"),
+		SystemDir:  filepath.Join(tmpDir, "none"),
+		Scope:      "vendor",
+		SearchOpts: okf.SearchOptions{
+			Query: "next.js",
+			Limit: 10,
+		},
+	})
+	if err != nil {
+		t.Fatalf("SearchLayered ('next.js') failed: %v", err)
+	}
+	if len(resNext) < 6 {
+		t.Fatalf("expected 6 results for 'next.js', got %d", len(resNext))
+	}
+	if resNext[len(resNext)-1].ConceptID != "@django-5/decisions/frontend" {
+		t.Errorf("expected @django-5/decisions/frontend (passing mention) to rank below dedicated @nextjs-15 concepts, got last=%s",
+			resNext[len(resNext)-1].ConceptID)
+	}
+}

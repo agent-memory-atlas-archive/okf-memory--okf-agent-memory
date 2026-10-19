@@ -27,7 +27,7 @@ Thank you to everyone who has contributed to **OKF Agent Memory**! Every contrib
 * **Majid ([@majido](https://github.com/majido))** — Diagnosis of strict MCP outputSchema and missing structuredContent payload in Pi Agent (#30).
 * **Matt ([@mattgdrums-cloud](https://github.com/mattgdrums-cloud))** — Detailed bug report, root-cause diagnosis, and taxonomy reconciliation proposal for CLI validate warning and gate counts (#35).
 * **Alvise ([@alvistar](https://github.com/alvistar))** — Bug report and reproduction for drift validation false positives with bundle-absolute and dot-relative index links (#41).
-* **Khouloud Kessentini ([@Khouloud-Kessentini](https://github.com/Khouloud-Kessentini))** — Analysis and bug report on DF/TF asymmetry, acronym suppression, and prefix false positives in BM25 scoring (#42).
+* **Khouloud Kessentini ([@Khouloud-Kessentini](https://github.com/Khouloud-Kessentini))** — Analysis and bug reports on DF/TF asymmetry, acronym suppression, prefix false positives, and per-bundle vendor IDF inversion in BM25 scoring (#42, #54).
 * **Ritsu Kuroda ([@kurodaritsu](https://github.com/kurodaritsu))** — Architectural proposal and requirement analysis for multi-scope bundle memory layering and composite BM25 search ranking (#11).
 * **Cordero Core ([@cdcore09](https://github.com/cdcore09))** — Bug report, reproduction, and root-cause analysis for lost sync state and index collisions in hub sync (#51, #52)
 

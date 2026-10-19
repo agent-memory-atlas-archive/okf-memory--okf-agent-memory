@@ -261,12 +261,23 @@ func SearchLayered(opts LayeredSearchOptions) ([]SearchResult, error) {
 	}
 
 	// 2. Search Vendor Layer (Priority 70)
+	// Combine all vendor bundles into a single composite corpus so BM25 statistics (N and df)
+	// are computed uniformly across the vendor layer rather than per individual package.
 	if searchVendor {
 		vRoot := opts.VendorRoot
 		if vRoot == "" {
 			vRoot = filepath.Join(".okf", "vendor")
 		}
 		if info, err := os.Stat(vRoot); err == nil && info.IsDir() {
+			compositeVendor := &Bundle{
+				Concepts:     make(map[string]*Concept),
+				Graph:        make(map[string][]string),
+				InboundGraph: make(map[string][]string),
+			}
+			originByID := make(map[string]string)
+			rawIDByID := make(map[string]string)
+			var vendorRawIDs []string
+
 			_ = filepath.Walk(vRoot, func(p string, fi os.FileInfo, err error) error {
 				if err != nil || !fi.IsDir() {
 					return nil
@@ -276,26 +287,44 @@ func SearchLayered(opts LayeredSearchOptions) ([]SearchResult, error) {
 					bundleID := filepath.ToSlash(rel)
 					vb, err := LoadBundle(p)
 					if err == nil {
-						vResults, _ := vb.SearchAdvanced(opts.SearchOpts)
-						for _, vr := range vResults {
-							rawID := vr.ConceptID
-							if !seenConcepts[rawID] {
-								vr.Scope = ScopeVendor
-								vr.Priority = PriorityVendor
-								vr.Origin = fmt.Sprintf("@%s", bundleID)
-								vr.ConceptID = fmt.Sprintf("@%s/%s", bundleID, rawID)
-								results = append(results, vr)
-								seenConcepts[rawID] = true
+						origin := fmt.Sprintf("@%s", bundleID)
+						for rawID, c := range vb.Concepts {
+							vendorRawIDs = append(vendorRawIDs, rawID)
+							if seenConcepts[rawID] {
+								continue
 							}
-						}
-						for id := range vb.Concepts {
-							seenConcepts[id] = true
+							scopedID := fmt.Sprintf("@%s/%s", bundleID, rawID)
+							compositeVendor.Concepts[scopedID] = c
+							compositeVendor.Graph[scopedID] = vb.Graph[rawID]
+							compositeVendor.InboundGraph[scopedID] = vb.InboundGraph[rawID]
+							originByID[scopedID] = origin
+							rawIDByID[scopedID] = rawID
 						}
 					}
 					return filepath.SkipDir
 				}
 				return nil
 			})
+
+			if len(compositeVendor.Concepts) > 0 {
+				vResults, err := compositeVendor.SearchAdvanced(opts.SearchOpts)
+				if err != nil {
+					return nil, fmt.Errorf("search error: %w", err)
+				}
+				for _, vr := range vResults {
+					rawID := rawIDByID[vr.ConceptID]
+					if !seenConcepts[rawID] {
+						vr.Scope = ScopeVendor
+						vr.Priority = PriorityVendor
+						vr.Origin = originByID[vr.ConceptID]
+						results = append(results, vr)
+						seenConcepts[rawID] = true
+					}
+				}
+			}
+			for _, rawID := range vendorRawIDs {
+				seenConcepts[rawID] = true
+			}
 		}
 	}
 
