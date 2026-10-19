@@ -15,6 +15,7 @@ Thank you to everyone who has contributed to **OKF Agent Memory**! Every contrib
 * **Wu Shuwen ([@dajiaohuang](https://github.com/dajiaohuang))** — GitFlow integration branch setup and issue-first development policy (#19)
 * **[@yakimoto](https://github.com/yakimoto)** — MCP tool outputSchema specifications and test coverage (#20, #22)
 * **[@akushonkamen](https://github.com/akushonkamen)** — Persist sync engine state across CLI invocations (#51, #53)
+* **Cordero Core ([@cdcore09](https://github.com/cdcore09))** — Semantic 3-way per-listing `index.md` merge in hub sync (#52, #55)
 
 ---
 
