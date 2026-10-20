@@ -1,9 +1,9 @@
 ---
 type: Decision
 title: Bundle Quality Scorecards and Pre-Pull Verification
-description: "Establishes a 3-pillar quality scorecard in okf validate (Epistemic Maintenance, Human Stewardship, Conformance Integrity) without redundant CLI commands."
+description: "Establishes a 3-pillar quality scorecard in okf validate, okf pull, and okf restore (Epistemic Maintenance, Human Stewardship, Conformance Integrity) without redundant CLI commands."
 tags: [scorecard, quality, architecture, decision, registry, stewardship]
-generated: { by: agent/mcp, at: "2026-10-20T12:55:03Z" }
+generated: { by: agent/mcp, at: "2026-10-20T13:22:26Z" }
 status: stable
 ---
 
@@ -29,7 +29,7 @@ flowchart TD
 
     Bundle["Knowledge Bundle"] --> SCORECARD
     SCORECARD --> Grade["Grade A-F (Score 0-100)"]
-    Grade --> CLI["CLI: okf validate --scorecard & --min-score"]
+    Grade --> CLI["CLI: okf validate, okf pull, okf restore"]
     Grade --> Registry["Registry Manifest & Web Catalog"]
 ```
 
@@ -57,9 +57,11 @@ flowchart TD
 * **Grade F:** Score < 60 (failed, deprecated, or structurally broken)
 
 ## SSoT & Unified CLI Architecture
-The scorecard evaluation engine lives canonically in `pkg/okf/scorecard.go`, exposed through `okf validate` without redundant top-level commands:
+The scorecard evaluation engine lives canonically in `pkg/okf/scorecard.go`, exposed through `okf validate`, `okf pull`, and `okf restore` without redundant top-level commands:
 * `okf validate [bundle] --scorecard [--json]`
 * `okf validate [bundle] --min-score <N> [--json]`
+* `okf pull <bundle> --min-score <N>` (aborts and rolls back vendor installation if below threshold)
+* `okf restore --min-score <N>` (aborts restoration if any locked bundle is below threshold)
 The registry catalog generator and client-side CLI gating share this identical deterministic engine.
 
 # Related Concepts

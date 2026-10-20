@@ -26,11 +26,13 @@ If no bundle is specified, restores all bundles declared in okf.lock.
 
 Flags:
   --registry <url>   Override canonical registry endpoint (default: https://registry.okf-memory.dev)
+  --min-score <N>    Gate minimum bundle quality score (0-100; aborts installation if below)
   --force            Overwrite existing vendor installation if present
 
 Examples:
   okf pull
   okf pull nextjs-15
+  okf pull nextjs-15 --min-score 80
   okf pull @peter/django-5-rules
   okf pull peter/django-5-rules@1.0.0
   okf pull github.com/acme/agent-rules@v1.0.0`)
@@ -39,11 +41,18 @@ Examples:
 func cmdPull(args []string) {
 	fs := flag.NewFlagSet("pull", flag.ExitOnError)
 	registryURL := fs.String("registry", registry.DefaultRegistryURL, "Registry endpoint")
+	minScore := fs.Int("min-score", 0, "Gate minimum bundle quality score (0-100)")
 	force := fs.Bool("force", false, "Overwrite existing vendor installation")
 	fs.Usage = printPullUsage
 
 	if err := fs.Parse(args); err != nil {
 		os.Exit(2)
+	}
+
+	if *minScore < 0 || *minScore > 100 {
+		fmt.Fprintf(os.Stderr, "Error: --min-score must be an integer between 0 and 100\n")
+		exitFunc(2)
+		return
 	}
 
 	if fs.NArg() < 1 {
@@ -52,7 +61,7 @@ func cmdPull(args []string) {
 			exitFunc(1)
 			return
 		}
-		runRestore(*registryURL, *force)
+		runRestore(*registryURL, *force, *minScore)
 		return
 	}
 
@@ -84,7 +93,7 @@ func cmdPull(args []string) {
 		return
 	}
 
-	// Post-install validation: ensure installed bundle conforms to OKF v0.2
+	// Post-install validation: ensure installed bundle conforms to OKF v0.2 and passes quality gate
 	rollback := func() {
 		_ = os.RemoveAll(vendorDir)
 		if strings.Contains(manifest.ID, "/") {
@@ -110,11 +119,19 @@ func cmdPull(args []string) {
 		return
 	}
 
-	diag := okf.Validate(vb, okf.ValidateOptions{Strict: true})
-	if !diag.IsConformant {
+	diag := okf.Validate(vb, okf.ValidateOptions{
+		Strict:   true,
+		MinScore: *minScore,
+	})
+	if !diag.IsConformant || !diag.GatePassed {
 		rollback()
-		fmt.Fprintf(os.Stderr, "Error: bundle %q failed strict validation (%d errors, %d broken links); installation rolled back\n",
-			manifest.ID, len(diag.Errors), len(diag.BrokenLinks))
+		if *minScore > 0 && diag.Scorecard != nil && diag.Scorecard.Score < *minScore {
+			fmt.Fprintf(os.Stderr, "Error: bundle %q failed quality gate: score %d is below required minimum %d (Grade: %s); installation rolled back\n",
+				manifest.ID, diag.Scorecard.Score, *minScore, diag.Scorecard.Grade)
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: bundle %q failed strict validation (%d errors, %d broken links); installation rolled back\n",
+				manifest.ID, len(diag.Errors), len(diag.BrokenLinks))
+		}
 		exitFunc(1)
 		return
 	}
@@ -135,5 +152,8 @@ func cmdPull(args []string) {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update okf.lock: %v\n", err)
 	}
 
+	if diag.Scorecard != nil {
+		fmt.Printf("Bundle quality score: %d/100 (Grade: %s)\n", diag.Scorecard.Score, diag.Scorecard.Grade)
+	}
 	fmt.Printf("Successfully installed and verified %s in %s\n", manifest.ID, vendorDir)
 }

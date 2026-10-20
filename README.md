@@ -163,11 +163,13 @@ This generates the standalone binary at `bin/okf`.
 
 # Pull external knowledge bundles from OKF Registry (registry.okf-memory.dev) or Git
 ./bin/okf pull nextjs-15
+./bin/okf pull nextjs-15 --min-score 80   # Gate bundle quality before installation
 ./bin/okf pull peter/django-5-rules
 ./bin/okf pull github.com/acme/agent-rules@v1.0.0
 
 # Restore all locked vendor bundles in fresh environments
 ./bin/okf restore
+./bin/okf restore --min-score 80          # Gate all restored bundles
 
 # Inspect and manage installed vendor bundles
 ./bin/okf vendor list
@@ -241,6 +243,9 @@ Evaluate knowledge bundles across three weighted pillars to eliminate "reproduci
 
 # Quality gating in CI (fails with exit code 1 if score < 80)
 ./bin/okf validate knowledge --min-score 80
+
+# Pre-pull quality gating (aborts installation & rolls back if score < 80)
+./bin/okf pull nextjs-15 --min-score 80
 ```
 
 ### 5. Bootstrapping Agent Memory in Any Project
