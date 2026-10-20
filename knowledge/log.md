@@ -1,4 +1,7 @@
 ## 2026-10-20
+* **Update**: Updated concept `architecture/bundle-quality-scorecards.md`.
+* **Update**: Linked `architecture/bundle-quality-scorecards.md` to `architecture/registry-and-vendor-layering.md` (Pre-pull scorecard verification integrates with registry and vendor layering).
+* **Creation**: Documented concept `architecture/bundle-quality-scorecards.md` (Bundle Quality Scorecards and Pre-Pull Verification).
 * **Update**: Added phases 20 (concept overrides) and 21 (quality scorecards) to `roadmap/milestones.md`.
 
 ## 2026-10-19
