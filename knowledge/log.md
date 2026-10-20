@@ -1,4 +1,5 @@
 ## 2026-10-20
+* **Update**: Completed phase 21 (Bundle Quality Scorecards & Pre-Pull Gating) in `roadmap/milestones.md`.
 * **Update**: Updated concept `architecture/bundle-quality-scorecards.md`.
 * **Update**: Linked `architecture/bundle-quality-scorecards.md` to `architecture/registry-and-vendor-layering.md` (Pre-pull scorecard verification integrates with registry and vendor layering).
 * **Creation**: Documented concept `architecture/bundle-quality-scorecards.md` (Bundle Quality Scorecards and Pre-Pull Verification).

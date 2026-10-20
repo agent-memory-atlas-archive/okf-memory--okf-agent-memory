@@ -84,7 +84,7 @@ handle format correctness.
 - [ ] Automated migration tools for legacy ad-hoc markdown files.
 - [ ] Extended MCP client ecosystem recipes.
 - [ ] **Explicit Concept Overrides & Upstream Provenance (RFC / P1)**: Replace brittle implicit path-shadowing with explicit frontmatter (`overrides: <target-id|urn>`) or DAG relations (`okf relate --type overrides`). Preserves upstream rule origin and local divergence justification, suppresses shadowed vendor constraints in layered search, and detects upstream drift during `okf update`.
-- [ ] **Pre-Pull Bundle Scorecard Engine (RFC / P1)**: Implement deterministic bundle scorecard engine in `pkg/okf/scorecard.go` and `okf validate --scorecard --json`. Computes 3-pillar quality score (Epistemic Maintenance 35%, Human Stewardship 35%, Graph & Conformance Integrity 30%), supports CLI gating (`okf pull --min-score 80`), and serves as SSoT for registry catalog generation.
+- [x] **Pre-Pull Bundle Scorecard Engine (RFC / P1, implemented in v0.7.0-dev)**: Deterministic 3-pillar quality scorecard engine (`pkg/okf/scorecard.go`), CLI gating with atomic rollback (`okf validate --scorecard/--min-score`, `okf pull --min-score <N>`, `okf restore --min-score <N>`), and SSoT integration with registry catalog generation.
 
 ---
 

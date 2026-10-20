@@ -41,7 +41,7 @@ The project progresses through 21 structured phases designed to take OKF Agent M
 | **Phase 18**| **Cross-Platform Boundary Hardening & Validation Taxonomy** | **Completed** | Cross-platform absolute path evasion protection (`IsAbsPath`), multi-line frontmatter smuggling defense, validate findings taxonomy separation, and Jules security automation. |
 | **Phase 19**| **OKF Registry & Multi-Scope Vendor Layering** | **Completed** | Decentralized registry client (`registry.okf-memory.dev`), zero-dep `okf.lock`, `okf pull`, `okf restore`, `okf vendor`, multi-scope BM25 indexing (`okf://`), streaming directory promotion, and post-install rollback. |
 | **Phase 20**| **Explicit Concept Overrides & Upstream Provenance** | **Planned** | Replace implicit path-shadowing with explicit frontmatter `overrides: <target-id|urn>`, cross-scope provenance tracking, DAG override suppression in layered search, and upstream drift warnings on `okf update`. |
-| **Phase 21**| **Bundle Quality Scorecards & Pre-Pull Gating** | **Planned** | Canonical scorecard engine (`pkg/okf/scorecard.go`), 3-pillar scoring (maintenance 35%, stewardship 35%, integrity 30%), and CLI gating (`okf pull --min-score <N>`). |
+| **Phase 21**| **Bundle Quality Scorecards & Pre-Pull Gating** | **Completed** | Canonical scorecard engine (`pkg/okf/scorecard.go`), 3-pillar scoring (maintenance 35%, stewardship 35%, integrity 30%), CLI gating with atomic rollback (`okf pull --min-score <N>`, `okf restore --min-score <N>`), and registry SSoT integration. |
 
 ## Inter-Concept Connections
 
