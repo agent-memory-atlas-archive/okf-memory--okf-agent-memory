@@ -1,3 +1,6 @@
+## 2026-10-20
+* **Update**: Added phases 20 (concept overrides) and 21 (quality scorecards) to `roadmap/milestones.md`.
+
 ## 2026-10-19
 * **Release**: Published version v0.6.2: semantic 3-way per-listing `index.md` merge in hub sync (#52, #55), composite BM25 IDF calculation across vendor packages (#54), numbered `Related Concepts` heading support in mutations, and retirement of standalone starter-pack distribution archives.
 
