@@ -109,9 +109,23 @@ func AppendLogEntry(bundleDir, entryType, description string) error {
 	}
 
 	heading := fmt.Sprintf("## %s\n", today)
-	if strings.Contains(existingContent, heading) {
-		// Insert under existing today heading
-		existingContent = strings.Replace(existingContent, heading, heading+newEntry, 1)
+	if idx := strings.Index(existingContent, heading); idx != -1 {
+		afterHeading := existingContent[idx+len(heading):]
+		nextHeadingIdx := strings.Index(afterHeading, "\n## ")
+		todaySection := afterHeading
+		if nextHeadingIdx != -1 {
+			todaySection = afterHeading[:nextHeadingIdx]
+		}
+
+		targetEntry := strings.TrimSpace(newEntry)
+		for _, line := range strings.Split(todaySection, "\n") {
+			if strings.TrimSpace(line) == targetEntry {
+				// Exact entry already recorded today; avoid redundant duplicate lines
+				return nil
+			}
+		}
+
+		existingContent = existingContent[:idx+len(heading)] + newEntry + existingContent[idx+len(heading):]
 	} else {
 		// Prepend today heading
 		existingContent = heading + newEntry + "\n" + strings.TrimLeft(existingContent, "\n")
