@@ -1,4 +1,5 @@
 ## 2026-10-20
+* **Release**: Published version v0.7.0: bundle quality scorecards (Phase 21), deterministic pre-pull quality gating (`--min-score`) with atomic filesystem rollback, machine-readable Scorecard JSON telemetry, and duplicate-safe ISO date log mutations.
 * **Update**: Completed phase 21 (Bundle Quality Scorecards & Pre-Pull Gating) in `roadmap/milestones.md`.
 * **Update**: Updated concept `architecture/bundle-quality-scorecards.md`.
 * **Update**: Linked `architecture/bundle-quality-scorecards.md` to `architecture/registry-and-vendor-layering.md` (Pre-pull scorecard verification integrates with registry and vendor layering).
