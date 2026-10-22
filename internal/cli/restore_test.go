@@ -497,3 +497,55 @@ func TestCmdRestore_MinScoreGate(t *testing.T) {
 		t.Errorf("expected success message, got: %s", stdoutBuf.String())
 	}
 }
+
+func TestCmdRestore_EmptyLock(t *testing.T) {
+	workDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	if err := lock.WriteLockfile("okf.lock", &lock.Lockfile{Version: 1}); err != nil {
+		t.Fatal(err)
+	}
+
+	restoreCmd, ok := FindCommand("restore")
+	if !ok {
+		t.Fatalf("restore command not found")
+	}
+
+	exitCode := -1
+	origExit := exitFunc
+	defer func() { exitFunc = origExit }()
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+
+	rOut, wOut, _ := os.Pipe()
+	rErr, wErr, _ := os.Pipe()
+	origStdout, origStderr := os.Stdout, os.Stderr
+	os.Stdout, os.Stderr = wOut, wErr
+	defer func() { os.Stdout, os.Stderr = origStdout, origStderr }()
+
+	restoreCmd.Run([]string{})
+	_ = wOut.Close()
+	_ = wErr.Close()
+
+	var outBuf, errBuf bytes.Buffer
+	_, _ = io.Copy(&outBuf, rOut)
+	_, _ = io.Copy(&errBuf, rErr)
+
+	if exitCode != -1 {
+		t.Errorf("expected no exit call for empty okf.lock, got exit code %d", exitCode)
+	}
+	if !strings.Contains(outBuf.String(), "No vendor bundles specified in okf.lock.") {
+		t.Errorf("expected empty-lock notice on stdout, got: %q", outBuf.String())
+	}
+	if errBuf.Len() != 0 {
+		t.Errorf("expected empty stderr, got: %q", errBuf.String())
+	}
+	if _, err := os.Stat(filepath.Join(".okf", "vendor")); !os.IsNotExist(err) {
+		t.Errorf("expected no vendor directory to be created, stat err: %v", err)
+	}
+}
