@@ -285,12 +285,13 @@ func cmdShow(args []string) {
 	}
 
 	if *jsonOut {
-		data, _ := json.MarshalIndent(c, "", "  ")
+		data, _ := json.MarshalIndent(res, "", "  ")
 		fmt.Println(string(data))
 		return
 	}
 
 	fmt.Printf("ID:          %s\n", c.ID)
+	fmt.Printf("Scope:       %s\n", res.Scope)
 	fmt.Printf("Type:        %s\n", c.Type)
 	fmt.Printf("Title:       %s\n", c.Title)
 	fmt.Printf("Description: %s\n", c.Description)

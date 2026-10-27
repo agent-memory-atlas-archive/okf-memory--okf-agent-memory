@@ -137,14 +137,16 @@ okf show <concept-id> [bundle-path] [--json] [--raw]
 
 * **Arguments**:
   * `concept-id` (required): Unique concept identifier or scoped reference:
-    * **Local Project Concept**: `decisions/auth` or `architecture/layers`
+    * **Bare Concept ID**: `decisions/auth` or `architecture/layers`. Searches project, user, then system memory and returns the first match.
     * **Vendor Concept**: `@<bundle-id>/<concept-id>` (e.g. `@nextjs-15/decisions/routing` or `@peter/django-rules/decisions/auth`)
     * **User Concept**: `user:<concept-id>` (e.g. `user:guidelines/style`)
     * **System Concept**: `system:<concept-id>` (e.g. `system:corp/policies`)
-    * **Canonical URN**: `okf://@nextjs-15/decisions/routing`, `okf://user/...`, `okf://system/...`
+    * **Canonical URN**: `okf://project/decisions/auth`, `okf://@nextjs-15/decisions/routing`, `okf://user/...`, `okf://system/...`
 * **Flags**:
   * `--raw`: Emits the exact raw markdown file as stored on disk.
-  * `--json`: Emits complete structured concept object.
+  * `--json`: Emits the complete structured concept object, including the resolved `scope`.
+
+Human-readable output also includes the resolved scope. Explicit scopes never use fallback. Vendor concepts require an explicit reference.
 
 ---
 
@@ -402,7 +404,8 @@ OKF Agent Memory organizes knowledge across four deterministic memory scopes. Hi
 #### Resolution & Disambiguation Rules:
 1. **Local vs. Vendor Disambiguation:**
    - Identifiers with leading `@` (e.g. `@nextjs-15/decisions/routing`) strictly resolve to `.okf/vendor/`.
-   - Identifiers without `@` (e.g. `nextjs-15/decisions/routing` or `decisions/auth`) strictly resolve to the local project bundle (`knowledge/`).
+   - Bare IDs passed to `show` or `okf_show` search project, user, then system memory. Vendor bundles are excluded.
+   - Relative Markdown links remain local to their bundle. Use `okf://project/<concept-id>` to restrict `show` to project memory.
 2. **User & System URN Shorthands:**
    - `user:<path>` maps to `~/.okf/<path>` (or `$OKF_USER_DIR`).
    - `system:<path>` maps to `/etc/okf/<path>` (or `$OKF_SYSTEM_DIR`).

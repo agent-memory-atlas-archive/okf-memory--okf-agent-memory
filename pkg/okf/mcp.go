@@ -522,8 +522,8 @@ func (s *mcpServer) handleToolCall(req jsonRPCRequest) {
 			s.sendToolResult(req.ID, fmt.Sprintf("%v", err), nil, true)
 			return
 		}
-		resJSON, _ := json.Marshal(res.Concept)
-		s.sendToolResult(req.ID, string(resJSON), res.Concept, false)
+		resJSON, _ := json.Marshal(res)
+		s.sendToolResult(req.ID, string(resJSON), res, false)
 
 	case "okf_validate":
 		strict := true

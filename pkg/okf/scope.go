@@ -414,15 +414,16 @@ func SearchLayered(opts LayeredSearchOptions) ([]SearchResult, error) {
 
 // ScopedConceptResult represents the outcome of resolving a concept identifier across scopes.
 type ScopedConceptResult struct {
-	Concept   *Concept
-	Bundle    *Bundle
-	BundleDir string
-	Scope     Scope
+	*Concept
+	Bundle    *Bundle `json:"-"`
+	BundleDir string  `json:"-"`
+	Scope     Scope   `json:"scope"`
 }
 
 // ResolveScopedConcept resolves a concept identifier across project, vendor, user, and system scopes.
 // It accepts local concept IDs (e.g. 'architecture/database'), vendor references (e.g. '@nextjs-15/decisions/routing'),
 // user-scoped IDs ('user:preferences/style'), system-scoped IDs ('system:corp/policies'), or canonical URNs ('okf://...').
+// Bare IDs search project, user, then system. Explicit scopes do not use fallback.
 func ResolveScopedConcept(rawID, defaultBundleDir, vendorRoot, userDir, systemDir string) (*ScopedConceptResult, error) {
 	trimmed := strings.TrimSpace(rawID)
 	if trimmed == "" {
@@ -458,48 +459,66 @@ func ResolveScopedConcept(rawID, defaultBundleDir, vendorRoot, userDir, systemDi
 		}
 	}
 
-	switch showScope {
-	case ScopeVendor:
-		if vendorRoot == "" {
-			vendorRoot = filepath.Join(".okf", "vendor")
-		}
-		bundleDir = filepath.Join(vendorRoot, filepath.FromSlash(showBundleID))
-	case ScopeUser:
-		if userDir == "" {
-			userDir = ResolveUserDir()
-		}
-		bundleDir = userDir
-		if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
-			bundleDir = filepath.Join(bundleDir, "knowledge")
-		}
-	case ScopeSystem:
-		if systemDir == "" {
-			systemDir = ResolveSystemDir()
-		}
-		bundleDir = systemDir
-		if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
-			bundleDir = filepath.Join(bundleDir, "knowledge")
-		}
+	explicitScope := strings.HasPrefix(normID, "okf://")
+	scopes := []Scope{showScope}
+	if !explicitScope {
+		scopes = []Scope{ScopeProject, ScopeUser, ScopeSystem}
 	}
+	projectDir := bundleDir
+	for _, showScope := range scopes {
+		bundleDir := projectDir
+		switch showScope {
+		case ScopeVendor:
+			if vendorRoot == "" {
+				vendorRoot = filepath.Join(".okf", "vendor")
+			}
+			bundleDir = filepath.Join(vendorRoot, filepath.FromSlash(showBundleID))
+		case ScopeUser:
+			if userDir == "" {
+				userDir = ResolveUserDir()
+			}
+			bundleDir = userDir
+			if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
+				bundleDir = filepath.Join(bundleDir, "knowledge")
+			}
+		case ScopeSystem:
+			if systemDir == "" {
+				systemDir = ResolveSystemDir()
+			}
+			bundleDir = systemDir
+			if kInfo, kErr := os.Stat(filepath.Join(bundleDir, "knowledge")); kErr == nil && kInfo.IsDir() {
+				bundleDir = filepath.Join(bundleDir, "knowledge")
+			}
+		}
 
-	load := LoadBundle
-	if showScope == ScopeUser || showScope == ScopeSystem {
-		load = loadTrustedBundle
-	}
-	b, err := load(bundleDir)
-	if err != nil {
-		return nil, fmt.Errorf("error loading bundle from %q: %w", bundleDir, err)
-	}
+		load := LoadBundle
+		if showScope == ScopeUser || showScope == ScopeSystem {
+			load = loadTrustedBundle
+		}
+		if !explicitScope {
+			if _, err := os.Stat(bundleDir); os.IsNotExist(err) {
+				continue
+			}
+		}
+		b, err := load(bundleDir)
+		if err != nil {
+			return nil, fmt.Errorf("error loading bundle from %q: %w", bundleDir, err)
+		}
 
-	c, ok := b.Concepts[conceptID]
-	if !ok {
-		return nil, fmt.Errorf("concept '%s' not found in '%s'", conceptID, bundleDir)
-	}
+		c, ok := b.Concepts[conceptID]
+		if !ok {
+			if !explicitScope {
+				continue
+			}
+			return nil, fmt.Errorf("concept '%s' not found in '%s'", conceptID, bundleDir)
+		}
 
-	return &ScopedConceptResult{
-		Concept:   c,
-		Bundle:    b,
-		BundleDir: bundleDir,
-		Scope:     showScope,
-	}, nil
+		return &ScopedConceptResult{
+			Concept:   c,
+			Bundle:    b,
+			BundleDir: bundleDir,
+			Scope:     showScope,
+		}, nil
+	}
+	return nil, fmt.Errorf("concept '%s' not found in '%s' or user/system scope", conceptID, projectDir)
 }

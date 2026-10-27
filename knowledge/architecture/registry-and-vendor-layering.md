@@ -3,7 +3,7 @@ type: Decision
 title: "OKF Registry Client, Dependency Locking, and Multi-Scope Vendor Layering"
 description: "Decentralized package registry client, zero-dependency okf.lock manifest, multi-scope priority layering, and hermetic @ cross-scope URI routing."
 tags: [registry, vendor, lockfile, multi-scope, layering, pull]
-generated: { by: agent/mcp, at: "2026-10-01T09:22:20Z" }
+generated: { by: agent/cli, at: "2026-10-26T13:27:54Z" }
 status: stable
 ---
 
@@ -106,7 +106,10 @@ To prevent broken link warnings and maintain unambiguous boundaries between loca
 * **Strict Disambiguation & Validator Rules**:
   * References with a leading `@` resolve strictly to `.okf/vendor/`.
   * References with `user:` and `system:` resolve to user (`~/.okf/`) and system (`/etc/okf/`) layers.
-  * References without prefix (e.g. `decisions/routing.md`) resolve strictly to the local project bundle (`knowledge/`).
+  * Relative Markdown links without a prefix (e.g. `decisions/routing.md`) remain local to their bundle.
+  * Bare IDs passed to `show` or `okf_show` search project, user, then system memory and return the first match. Vendor bundles are excluded.
+  * Explicit references select only their named scope. Use `okf://project/<concept-id>` to restrict lookup to project memory.
+  * CLI text, CLI JSON, and MCP responses include the resolved scope. Raw CLI output remains the stored Markdown file.
   * Bundle validation (`okf validate --strict`) recognizes all external references (`@`, `user:`, `system:`, `okf://`, `https://`) without failing or emitting broken link errors, and avoids false-positive orphan detection for concepts referencing external knowledge.
 
 ---
