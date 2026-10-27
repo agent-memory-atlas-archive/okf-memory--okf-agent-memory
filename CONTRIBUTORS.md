@@ -17,6 +17,7 @@ Thank you to everyone who has contributed to **OKF Agent Memory**! Every contrib
 * **[@akushonkamen](https://github.com/akushonkamen)** — Persist sync engine state across CLI invocations (#51, #53)
 * **Cordero Core ([@cdcore09](https://github.com/cdcore09))** — Semantic 3-way per-listing `index.md` merge in hub sync (#52, #55)
 * **Zerui Ge ([@gezerui888](https://github.com/gezerui888))** — Nearest-first scope fallback for bare concept IDs in show and okf_show (#47, #61)
+* **Terry Xeenastar ([@iSkyleya1](https://github.com/iSkyleya1))** — Relative nested bundle resolution in MCP and preservation of unknown keys in sources (#57, #58)
 
 ---
 

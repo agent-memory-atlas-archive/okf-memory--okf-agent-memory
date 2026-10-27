@@ -1,4 +1,5 @@
 ## 2026-10-27
+* **Update**: Updated concept `architecture/security-boundaries.md`.
 * **Update**: Updated concept `architecture/metadata-roundtrip.md`.
 
 ## 2026-10-26

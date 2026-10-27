@@ -2,7 +2,7 @@
 type: Decision
 title: Bundle Isolation and Mutation Security Boundaries
 description: "Defensive security architecture enforcing canonical bundle boundaries, symlink containment, path traversal prevention, and frontmatter injection defense."
-generated: { by: agent/mcp, at: "2026-10-04T14:21:30Z" }
+generated: { by: agent/mcp, at: "2026-10-27T08:55:22Z" }
 ---
 
 # Bundle Isolation and Mutation Security Boundaries
@@ -42,6 +42,7 @@ Metadata fields (`type`, `title`, `description`, `actor`) are strictly validated
 ### 4. MCP Server Root Confinement (`resolveBundleDir`)
 The stdio Model Context Protocol (MCP) server confines dynamic bundle switching:
 - The server initializes with a canonical `rootDir` (governed by project workspace or `OKF_MCP_ROOT`).
+- When `OKF_MCP_ROOT` is unset, the root is derived from the bundle's parent. If a multi-segment relative path is given (e.g. `docs/knowledge`), the bundle path is normalized to absolute first to prevent double-joining while maintaining strict boundary confinement.
 - Multi-bundle projects can dynamically select sub-bundles (e.g. `bundle="examples/software"`), but any request escaping the server root is denied before loading.
 - Required MCP mutation arguments (`concept_id`, `type`, `title`, `description`) are strictly non-empty.
 
