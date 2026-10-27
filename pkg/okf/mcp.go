@@ -89,6 +89,13 @@ func RunMCPServerIO(bundleDir string, in io.Reader, out io.Writer) error {
 	rootDir := os.Getenv("OKF_MCP_ROOT")
 	if rootDir == "" {
 		if bundleDir != "" && bundleDir != "." {
+			// The root is derived from the bundle's own path, so make that path
+			// absolute first: resolveBundleDir joins a relative bundle path to the
+			// root, and a relative "docs/knowledge" would otherwise be joined to
+			// its own parent and resolve to "docs/docs/knowledge".
+			if absBundle, err := filepath.Abs(bundleDir); err == nil {
+				bundleDir = absBundle
+			}
 			cleanBundle := filepath.Clean(bundleDir)
 			rootDir = filepath.Dir(cleanBundle)
 			if rootDir == "" {
