@@ -14,15 +14,15 @@ func TestShowBareIDReportsScope(t *testing.T) {
 	t.Setenv("OKF_USER_DIR", user)
 	t.Setenv("OKF_SYSTEM_DIR", filepath.Join(root, "system"))
 	for _, dir := range []string{project, user} {
-		if err := os.MkdirAll(dir, 0700); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, "index.md"), []byte("# Index\n"), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "index.md"), []byte("# Index\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	raw := "---\ntype: Note\ntitle: User note\n---\n# Note\n"
-	if err := os.WriteFile(filepath.Join(user, "note.md"), []byte(raw), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(user, "note.md"), []byte(raw), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	out := captureOutput(func() { cmdShow([]string{"note", project, "--json"}) })
