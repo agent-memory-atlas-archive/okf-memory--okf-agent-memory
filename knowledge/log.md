@@ -1,3 +1,6 @@
+## 2026-10-27
+* **Update**: Updated concept `architecture/metadata-roundtrip.md`.
+
 ## 2026-10-26
 * **Update**: Updated concept `architecture/registry-and-vendor-layering.md`.
 
