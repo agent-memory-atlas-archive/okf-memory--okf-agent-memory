@@ -1,3 +1,6 @@
+## 2026-10-28
+* **Update**: Updated concept `architecture/security-boundaries.md`.
+
 ## 2026-10-27
 * **Release**: Published version v0.7.1: nearest-first scope resolution in show (#47, #61), safe preservation of non-standard metadata in sources (#57), relative nested MCP bundle path resolution (#58), and staticcheck QF1008 embedded selector cleanup.
 * **Update**: Updated concept `architecture/security-boundaries.md`.

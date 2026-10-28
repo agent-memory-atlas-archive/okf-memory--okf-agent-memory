@@ -53,11 +53,12 @@ func (e *Engine) containedStatePath(target string) (string, error) {
 // element is not resolved, so a symlink at target is treated as the link itself
 // (used for deletes, which remove the link rather than what it points to).
 func (e *Engine) containedPath(kind, target string, followLeaf bool) (string, error) {
-	root, err := filepath.EvalSymlinks(e.BundlePath)
+	absRoot, err := filepath.Abs(e.BundlePath)
 	if err != nil {
 		return "", fmt.Errorf("sync: failed to resolve bundle root: %w", err)
 	}
-	if root, err = filepath.Abs(root); err != nil {
+	root, err := filepath.EvalSymlinks(absRoot)
+	if err != nil {
 		return "", fmt.Errorf("sync: failed to resolve bundle root: %w", err)
 	}
 	abs, err := filepath.Abs(target)

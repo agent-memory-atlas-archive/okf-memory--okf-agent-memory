@@ -2,7 +2,7 @@
 type: Decision
 title: Bundle Isolation and Mutation Security Boundaries
 description: "Defensive security architecture enforcing canonical bundle boundaries, symlink containment, path traversal prevention for local mutations and for untrusted remote hub, sync and registry input, and frontmatter injection defense."
-generated: { by: agent/cli, at: "2026-10-27T23:39:09Z" }
+generated: { by: agent/mcp, at: "2026-10-28T16:33:08Z" }
 ---
 
 # Bundle Isolation and Mutation Security Boundaries
@@ -18,6 +18,7 @@ The tooling layer enforces defensive confinement across four critical choke-poin
 ### 1. Canonical Bundle Confinement (`ensureWithinRoot`)
 All file reads in `LoadBundle` and writes in `SaveConcept`, `UpdateParentIndex`, and `AppendLogEntry` resolve symlinks and compare canonical paths against the bundle root via `filepath.Rel`.
 - Traversal via relative parent references (`..`) or absolute paths escaping the bundle directory is strictly denied.
+- The bundle root is absolutised **before** its symlinks are resolved. A relative root under a symlinked working directory (macOS `/tmp` → `/private/tmp`) otherwise stayed unresolved while the target resolved to the real path, and every legitimate write was refused as an escape.
 - Root-reserved files (`index.md`, `log.md`, `AGENTS.md`) cannot be overwritten as arbitrary concept documents regardless of letter case (`strings.EqualFold`). Subdirectory concepts (e.g. `architecture/agents.md`) remain permissible.
 
 ### 2. Symlink Escape Prevention

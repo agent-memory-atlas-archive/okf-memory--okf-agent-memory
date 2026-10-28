@@ -43,13 +43,17 @@ type BrokenLink struct {
 // ensureWithinRoot verifies that targetPath (resolving all symlinks) stays strictly
 // within the canonical root directory. It returns the resolved absolute path or an error.
 func ensureWithinRoot(rootDir, targetPath string) (string, error) {
-	realRoot, err := filepath.EvalSymlinks(rootDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve bundle root: %w", err)
-	}
-	realRoot, err = filepath.Abs(realRoot)
+	// Absolutise BEFORE resolving symlinks. EvalSymlinks on a relative path returns a
+	// relative path, so a relative root under a symlinked cwd (macOS /tmp -> /private/tmp)
+	// stayed unresolved while the target was resolved, and every legitimate write looked
+	// like an escape.
+	absRoot, err := filepath.Abs(rootDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to get absolute path of bundle root: %w", err)
+	}
+	realRoot, err := filepath.EvalSymlinks(absRoot)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve bundle root: %w", err)
 	}
 
 	cleanTarget := strings.ReplaceAll(targetPath, "\\", "/")
