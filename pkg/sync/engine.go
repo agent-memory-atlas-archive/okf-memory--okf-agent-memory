@@ -267,12 +267,19 @@ func (e *Engine) Pull(ctx context.Context) (*PullResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sync: failed to parse tree: %w", err)
 	}
+	if err := validateTreePaths(remoteTree); err != nil {
+		return nil, fmt.Errorf("sync: refusing to pull commit %s: %w", headResp.HeadCommit, err)
+	}
 
 	// 3. Diff and update local filesystem
 	diff := vault.DiffTrees(e.cachedTree, remoteTree)
 
 	var updated []string
 	toFetch := append(diff.Added, diff.Modified...)
+	writeTargets, deleteTargets, err := e.hubTargets(toFetch, diff.Deleted)
+	if err != nil {
+		return nil, fmt.Errorf("sync: refusing to pull commit %s: %w", headResp.HeadCommit, err)
+	}
 	for _, path := range toFetch {
 		entry := remoteTree.Entries[path]
 		blobBytes, err := e.Client.GetBlob(ctx, e.VaultID, entry.BlobHash)
@@ -285,7 +292,7 @@ func (e *Engine) Pull(ctx context.Context) (*PullResult, error) {
 			return nil, fmt.Errorf("sync: failed to decrypt %s: %w", path, err)
 		}
 
-		fullPath := filepath.Join(e.BundlePath, filepath.FromSlash(path))
+		fullPath := writeTargets[path]
 		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 			return nil, fmt.Errorf("sync: failed to mkdir for %s: %w", path, err)
 		}
@@ -297,8 +304,7 @@ func (e *Engine) Pull(ctx context.Context) (*PullResult, error) {
 	}
 
 	for _, path := range diff.Deleted {
-		fullPath := filepath.Join(e.BundlePath, filepath.FromSlash(path))
-		_ = os.Remove(fullPath)
+		_ = os.Remove(deleteTargets[path])
 	}
 
 	e.cachedHead = headResp.HeadCommit
@@ -373,6 +379,9 @@ func (e *Engine) Sync(ctx context.Context, author vault.CommitAuthor, message st
 		if err != nil {
 			return nil, fmt.Errorf("sync: failed to parse remote tree: %w", err)
 		}
+		if err := validateTreePaths(remoteTree); err != nil {
+			return nil, fmt.Errorf("sync: refusing to reconcile with remote commit %s: %w", remoteHead, err)
+		}
 
 		// Construct current local tree from files on disk
 		localFiles, err := e.ScanBundle()
@@ -441,6 +450,10 @@ func (e *Engine) Sync(ctx context.Context, author vault.CommitAuthor, message st
 		// Update local files with remote changes and conflict files
 		diff := vault.DiffTrees(localTree, reconcileRes.MergedTree)
 		toFetch := append(diff.Added, diff.Modified...)
+		writeTargets, deleteTargets, err := e.hubTargets(toFetch, diff.Deleted)
+		if err != nil {
+			return nil, fmt.Errorf("sync: refusing to reconcile with remote commit %s: %w", remoteHead, err)
+		}
 		for _, path := range toFetch {
 			entry := reconcileRes.MergedTree.Entries[path]
 			var plainBytes []byte
@@ -463,13 +476,13 @@ func (e *Engine) Sync(ctx context.Context, author vault.CommitAuthor, message st
 				}
 			}
 
-			fullPath := filepath.Join(e.BundlePath, filepath.FromSlash(path))
+			fullPath := writeTargets[path]
 			_ = os.MkdirAll(filepath.Dir(fullPath), 0o755)
 			_ = os.WriteFile(fullPath, plainBytes, 0o644)
 		}
 
 		for _, path := range diff.Deleted {
-			_ = os.Remove(filepath.Join(e.BundlePath, filepath.FromSlash(path)))
+			_ = os.Remove(deleteTargets[path])
 		}
 
 		// Upload new blobs

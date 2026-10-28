@@ -1,8 +1,8 @@
 ---
 type: Decision
 title: Bundle Isolation and Mutation Security Boundaries
-description: "Defensive security architecture enforcing canonical bundle boundaries, symlink containment, path traversal prevention, and frontmatter injection defense."
-generated: { by: agent/mcp, at: "2026-10-27T08:55:22Z" }
+description: "Defensive security architecture enforcing canonical bundle boundaries, symlink containment, path traversal prevention for local mutations and for untrusted remote hub, sync and registry input, and frontmatter injection defense."
+generated: { by: agent/cli, at: "2026-10-27T23:39:09Z" }
 ---
 
 # Bundle Isolation and Mutation Security Boundaries
@@ -56,6 +56,14 @@ OKF bundles are designed for shared Git repository version control:
 - A human identity is `human`, `human:*`, or `human/*`, compared case-insensitively (`IsHumanIdentity`). The `verified.by=human` filter uses the same definition, so the guard and the filter cannot disagree.
 - An agent may preserve `verified` entries already recorded in the concept file. Adding one, or altering the timestamp of an existing one, is rejected. A new concept inherits nothing from an existing file at its path.
 - Scope of the guarantee: the actor is self-declared. The MCP server fixes it to `agent/mcp`, so the guard is effective there. A CLI user can still pass `--actor human/...`, so for the CLI it guards against accidental or injected forgery, not against a deliberate caller.
+
+### 7. Remote Input Write Containment (Hub Sync and Registry Installs)
+Hub tree manifests, registry manifests, registry archives, and `okf.lock` entries are untrusted input: any holder of the vault key, a compromised registry, or a cloned repository controls them. Every path built from them must land inside the target bundle or workspace before anything is written or deleted.
+- **Hub tree paths** (`pkg/sync`, `validateTreePath`): a path that is empty, absolute or volume-qualified, contains `.`, `..` or empty segments, contains a hidden segment, a NUL byte, or a backslash separator is refused before any blob is fetched. Every write and delete target is then resolved through symlinks and must lie strictly inside the resolved bundle root (`filepath.Rel`, not a string prefix). One bad entry refuses the whole `okf hub pull` or `okf hub sync`, and a stored sync state that holds such a path is ignored.
+- **Sync state**: `.okf/sync-state.json` is read and written only when it resolves inside the bundle.
+- **Registry bundle ids** (`pkg/registry`, `ValidateBundleID`): an id must be a canonical relative slash path. Registry manifests and `okf.lock` entries with an absolute, `..`, `.`, empty, backslash, or NUL id are refused with an error naming the manifest or entry. Scoped and nested ids (`@peter/django-5-rules`, `acme/tools/linter`) remain valid. `.okf/vendor` must resolve inside the workspace, and each bundle directory strictly inside `.okf/vendor` (`ResolveVendorDir`).
+- **Archive extraction**: every entry is checked lexically and through symlinks before anything is extracted, so an archive is applied in full or not at all.
+- **Staged installs and rollback**: `okf pull` and `okf restore` extract and validate in a fresh staging directory under `.okf`, then move it into place. A failed install discards only that staging directory. Rollback never removes a directory this invocation did not create, and never follows a symlink. `okf vendor remove` re-resolves its target and unlinks a symlink instead of following it.
 
 ## Relationships
 

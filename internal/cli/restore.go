@@ -78,11 +78,19 @@ func runRestore(registryURL string, force bool, minScores ...int) {
 	skippedCount := 0
 
 	for _, entry := range lf.Bundles {
-		vendorDir := filepath.Join(".okf", "vendor", filepath.FromSlash(entry.ID))
+		// okf.lock may come from a repository: its ids must resolve inside
+		// .okf/vendor before anything is installed there or rolled back from there.
+		vendorDisplay := filepath.Join(".okf", "vendor", filepath.FromSlash(entry.ID))
+		vendorDir, err := registry.ResolveVendorDir(".", entry.ID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: refusing to restore okf.lock entry: %v\n", err)
+			exitFunc(1)
+			return
+		}
 		indexFile := filepath.Join(vendorDir, "index.md")
 
 		if _, err := os.Stat(indexFile); err == nil && !force {
-			fmt.Printf("Bundle %q is already installed in %s (skipping)\n", entry.ID, vendorDir)
+			fmt.Printf("Bundle %q is already installed in %s (skipping)\n", entry.ID, vendorDisplay)
 			skippedCount++
 			continue
 		}
@@ -108,30 +116,35 @@ func runRestore(registryURL string, force bool, minScores ...int) {
 		}
 
 		fmt.Printf("Downloading %s (version: %s)...\n", manifest.ID, manifest.Version)
-		if err := client.DownloadAndExtract(manifest, vendorDir); err != nil {
+		// Extract and validate in a fresh staging directory: rollback discards
+		// only what this invocation created, never an existing directory.
+		staging, err := registry.NewStaging(".")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: refusing to restore %s: %v\n", entry.ID, err)
+			exitFunc(1)
+			return
+		}
+		if err := client.DownloadAndExtract(manifest, staging.Dir); err != nil {
+			_ = staging.Discard()
 			fmt.Fprintf(os.Stderr, "Download error for %s: %v\n", manifest.ID, err)
 			exitFunc(1)
 			return
 		}
 
 		rollback := func() {
-			_ = os.RemoveAll(vendorDir)
-			if strings.Contains(manifest.ID, "/") {
-				parentDir := filepath.Dir(vendorDir)
-				if entries, err := os.ReadDir(parentDir); err == nil && len(entries) == 0 {
-					_ = os.Remove(parentDir)
-				}
+			if err := staging.Discard(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: rollback refused: %v\n", err)
 			}
 		}
 
-		if _, err := os.Stat(filepath.Join(vendorDir, "index.md")); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(staging.Dir, "index.md")); os.IsNotExist(err) {
 			rollback()
 			fmt.Fprintf(os.Stderr, "Error: bundle %q is not a valid OKF v0.2 bundle: missing index.md (installation rolled back)\n", manifest.ID)
 			exitFunc(1)
 			return
 		}
 
-		vb, err := okf.LoadBundle(vendorDir)
+		vb, err := okf.LoadBundle(staging.Dir)
 		if err != nil {
 			rollback()
 			fmt.Fprintf(os.Stderr, "Error: bundle %q failed to load: %v (installation rolled back)\n", manifest.ID, err)
@@ -156,10 +169,17 @@ func runRestore(registryURL string, force bool, minScores ...int) {
 			return
 		}
 
+		if err := staging.Commit(".", entry.ID); err != nil {
+			rollback()
+			fmt.Fprintf(os.Stderr, "Error: bundle %q could not be restored: %v (installation rolled back)\n", manifest.ID, err)
+			exitFunc(1)
+			return
+		}
+
 		if diag.Scorecard != nil {
 			fmt.Printf("Bundle quality score: %d/100 (Grade: %s)\n", diag.Scorecard.Score, diag.Scorecard.Grade)
 		}
-		fmt.Printf("Successfully restored %s in %s\n", manifest.ID, vendorDir)
+		fmt.Printf("Successfully restored %s in %s\n", manifest.ID, vendorDisplay)
 		restoredCount++
 	}
 

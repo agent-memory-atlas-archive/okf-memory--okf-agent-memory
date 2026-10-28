@@ -2,6 +2,7 @@
 * **Release**: Published version v0.7.1: nearest-first scope resolution in show (#47, #61), safe preservation of non-standard metadata in sources (#57), relative nested MCP bundle path resolution (#58), and staticcheck QF1008 embedded selector cleanup.
 * **Update**: Updated concept `architecture/security-boundaries.md`.
 * **Update**: Updated concept `architecture/metadata-roundtrip.md`.
+* **Update**: Documented remote input write containment in `architecture/security-boundaries.md`: hub tree paths, registry bundle ids, and archive entries must resolve inside the bundle or workspace before any write, and `okf pull`/`okf restore` install through a staging directory so rollback removes only what the invocation created.
 
 ## 2026-10-26
 * **Update**: Updated concept `architecture/registry-and-vendor-layering.md`.
