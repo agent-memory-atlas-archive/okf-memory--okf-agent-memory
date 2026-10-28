@@ -1,4 +1,5 @@
 ## 2026-10-28
+* **Release**: Published version v0.7.2: remote path containment in hub sync and registry installs (#64), staged atomic rollbacks for `okf pull` and `okf restore`, and pre-symlink bundle root absolutisation under symlinked working directories (#62, #63).
 * **Update**: Updated concept `architecture/security-boundaries.md`.
 
 ## 2026-10-27
